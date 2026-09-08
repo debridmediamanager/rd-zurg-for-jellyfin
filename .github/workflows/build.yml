@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build src/Jellyfin.Plugin.RdZurg -c Release
+
+      - name: Test
+        run: dotnet test tests/Jellyfin.Plugin.RdZurg.Tests -c Release
+
+      - name: Package
+        run: ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rd-zurg
+          path: artifacts/

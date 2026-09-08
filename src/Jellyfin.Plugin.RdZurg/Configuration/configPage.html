@@ -1,0 +1,158 @@
+<div id="RdZurgConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+  <div data-role="content">
+    <div class="content-primary">
+      <form id="RdZurgConfigForm">
+
+        <div class="verticalSection">
+          <div class="sectionTitleContainer flex align-items-center">
+            <h2 class="sectionTitle">Real-Debrid</h2>
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="password" id="ApiKey" label="API token" required />
+            <div class="fieldDescription">
+              From <a is="emby-linkbutton" class="button-link" href="https://real-debrid.com/apitoken" target="_blank" rel="noopener">real-debrid.com/apitoken</a>.
+              Stored in plain text in the plugin's configuration file, like every other Jellyfin plugin credential.
+            </div>
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="text" id="PublicBaseUrl" label="Server URL" required />
+            <div class="fieldDescription">
+              How this server is reached, for example <code>http://192.168.1.10:8096</code>. Every library
+              item points here, so it must be reachable by your players as well as by the server itself.
+            </div>
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="number" id="MaxTorrents" label="Torrent limit" min="0" step="1" />
+            <div class="fieldDescription">
+              How many of the newest torrents to take. 0 means the whole account. A first pass costs
+              roughly one API call per torrent.
+            </div>
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="number" id="MinRequestIntervalMs" label="Minimum gap between API calls (ms)" min="0" step="10" />
+            <div class="fieldDescription">
+              Real-Debrid publishes 250 requests per minute and counts refused ones against the
+              allowance, so 300 ms leaves headroom. Lower it only if you know why.
+            </div>
+          </div>
+        </div>
+
+        <div class="verticalSection">
+          <div class="sectionTitleContainer flex align-items-center">
+            <h2 class="sectionTitle">Libraries</h2>
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="text" id="MovieLibraryName" label="Movie library name" />
+          </div>
+
+          <div class="inputContainer">
+            <input is="emby-input" type="text" id="ShowLibraryName" label="Show library name" />
+          </div>
+
+          <div class="fieldDescription" style="margin-bottom:1em;">
+            Movies and shows need separate libraries. Jellyfin chooses metadata providers by library
+            type, and both are created for you on the first sync.
+          </div>
+
+          <div class="checkboxContainer checkboxContainer-withDescription">
+            <label class="emby-checkbox-label">
+              <input is="emby-checkbox" type="checkbox" id="MergeDuplicateVersions" />
+              <span>Merge releases of the same title</span>
+            </label>
+            <div class="fieldDescription checkboxFieldDescription">
+              One entry per film with the releases behind it as selectable versions, instead of the
+              same film listed twenty times. Byte-identical re-adds are always dropped.
+            </div>
+          </div>
+
+          <div class="checkboxContainer checkboxContainer-withDescription">
+            <label class="emby-checkbox-label">
+              <input is="emby-checkbox" type="checkbox" id="RemoveVanishedItems" />
+              <span>Remove items that are gone from Real-Debrid</span>
+            </label>
+            <div class="fieldDescription checkboxFieldDescription">
+              Deletes library entries whose torrent no longer exists in the account. Leave this off
+              if you want a deleted torrent to keep its entry until you clean it up yourself.
+            </div>
+          </div>
+
+          <div class="checkboxContainer checkboxContainer-withDescription">
+            <label class="emby-checkbox-label">
+              <input is="emby-checkbox" type="checkbox" id="UnwrapArchives" />
+              <span>Look inside RAR archives</span>
+            </label>
+            <div class="fieldDescription checkboxFieldDescription">
+              Real-Debrid often serves a release as a RAR without saying so: the file list claims
+              <code>X.mkv</code> and the link serves <code>X.mkv.rar</code>. With this on, a stored
+              archive is read through and the file inside is served. With it off, such releases are
+              left out rather than added as items that will not play.
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+            <span>Save</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    (function () {
+      var pluginId = '4d0b1a37-1f1c-4a3e-9f5c-2e6a7b8c9d01';
+
+      var textFields = ['ApiKey', 'PublicBaseUrl', 'MovieLibraryName', 'ShowLibraryName'];
+      var numberFields = ['MaxTorrents', 'MinRequestIntervalMs'];
+      var checkboxFields = ['MergeDuplicateVersions', 'RemoveVanishedItems', 'UnwrapArchives'];
+
+      document.querySelector('#RdZurgConfigPage').addEventListener('pageshow', function () {
+        Dashboard.showLoadingMsg();
+
+        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+          textFields.concat(numberFields).forEach(function (id) {
+            document.querySelector('#' + id).value = config[id];
+          });
+
+          checkboxFields.forEach(function (id) {
+            document.querySelector('#' + id).checked = config[id];
+          });
+
+          Dashboard.hideLoadingMsg();
+        });
+      });
+
+      document.querySelector('#RdZurgConfigForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        Dashboard.showLoadingMsg();
+
+        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+          textFields.forEach(function (id) {
+            config[id] = document.querySelector('#' + id).value;
+          });
+
+          numberFields.forEach(function (id) {
+            config[id] = parseInt(document.querySelector('#' + id).value, 10) || 0;
+          });
+
+          checkboxFields.forEach(function (id) {
+            config[id] = document.querySelector('#' + id).checked;
+          });
+
+          ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+            Dashboard.processPluginConfigurationUpdateResult(result);
+          });
+        });
+
+        return false;
+      });
+    })();
+  </script>
+</div>
