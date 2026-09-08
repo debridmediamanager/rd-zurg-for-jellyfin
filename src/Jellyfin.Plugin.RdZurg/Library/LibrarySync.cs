@@ -41,6 +41,7 @@ public sealed class LibrarySync
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger _logger;
     private readonly ReleaseNames _names = new();
+    private readonly HashSet<Guid> _repairedProviderIds = new();
 
     /// <summary>Initializes a new instance of the <see cref="LibrarySync"/> class.</summary>
     /// <param name="libraryManager">Jellyfin's library manager.</param>
@@ -74,6 +75,7 @@ public sealed class LibrarySync
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(progress);
+        config.Validate();
 
         var builder = new LibraryBuilder(_libraryManager, _logger);
 
@@ -91,15 +93,19 @@ public sealed class LibrarySync
 
         if (movieFolder is null || showFolder is null)
         {
-            return new SyncResult();
+            throw new InvalidOperationException("Could not establish the RD zurg library folders.");
         }
 
-        var client = new RealDebridClient(_httpClientFactory.CreateClient(), config.ApiKey, config.MinRequestIntervalMs);
+        using var apiHttp = _httpClientFactory.CreateClient();
+        var client = new RealDebridClient(apiHttp, config.ApiKey, config.MinRequestIntervalMs);
         var torrents = await client.GetTorrentsAsync(config.MaxTorrents, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Real-Debrid reported {Count} torrents", torrents.Count);
 
         var known = ExistingItemsByLink(movieFolder, showFolder);
-        var liveKeys = new HashSet<string>(StringComparer.Ordinal);
+        // Build liveness from the complete listing, before any detail requests can fail.
+        // Pending or temporarily errored torrents also retain their existing links.
+        var liveKeys = new HashSet<string>(torrents.SelectMany(t => t.Links).Select(RealDebridClient.LinkKey), StringComparer.Ordinal);
+        await UpdatePlaybackUrlsAsync(known.Values, config, cancellationToken).ConfigureAwait(false);
 
         var seriesByName = new Dictionary<string, Series>(StringComparer.OrdinalIgnoreCase);
         var seasonsBySeries = new Dictionary<Guid, Dictionary<int, Season>>();
@@ -108,7 +114,7 @@ public sealed class LibrarySync
         // by having seen the release before, and "before" has to include previous runs: seeded
         // per-pass, the copy dropped today is added tomorrow, once its twin counts as known and the
         // torrent-level check stops the pass ever reaching the comparison.
-        var seenReleases = ExistingReleases(known.Values);
+        var seenReleases = ExistingReleases(known.Where(p => liveKeys.Contains(p.Key)).Select(p => p.Value));
 
         var newMovies = new List<BaseItem>();
         var episodesAdded = 0;
@@ -135,26 +141,17 @@ public sealed class LibrarySync
             // The listing already carries the links, so recognising a torrent costs nothing and the
             // per-torrent detail call, which is the expensive half, only happens for new arrivals.
             //
-            // One known link is enough. A torrent's links cover every selected file including the
-            // subtitles and sample clips that never become items, so requiring all of them to be
-            // known would recognise almost nothing. A downloaded torrent's contents never change,
-            // so having seen any of it means having seen all of it.
-            if (keys.Exists(known.ContainsKey))
+            // All links must be accounted for before skipping a torrent. Otherwise cancellation
+            // after the first episode leaves the rest of a season pack permanently missing.
+            // Packs containing non-video files may need a detail call again on later passes.
+            if (keys.All(known.ContainsKey))
             {
                 alreadyKnown++;
                 continue;
             }
 
-            RdTorrentInfo? info;
-            try
-            {
-                info = await client.GetTorrentInfoAsync(torrent.Id, cancellationToken).ConfigureAwait(false);
-            }
-            catch (RealDebridRefusedException ex)
-            {
-                _logger.LogWarning(ex, "Stopping this pass early");
-                break;
-            }
+            // Fail the task on provider errors; do not report a partial pass as successful.
+            var info = await client.GetTorrentInfoAsync(torrent.Id, cancellationToken).ConfigureAwait(false);
 
             if (info is null)
             {
@@ -233,12 +230,13 @@ public sealed class LibrarySync
             _libraryManager.CreateItems(newMovies, movieFolder, cancellationToken);
         }
 
-        var versionsMerged = config.MergeDuplicateVersions
-            ? await MergeVersionsAsync(movieFolder, cancellationToken).ConfigureAwait(false)
+        // A limited listing cannot prove that an older torrent was deleted.
+        var removed = config.RemoveVanishedItems && config.MaxTorrents == 0
+            ? RemoveVanished(known, liveKeys)
             : 0;
 
-        var removed = config.RemoveVanishedItems
-            ? RemoveVanished(known, liveKeys)
+        var versionsMerged = config.MergeDuplicateVersions
+            ? await MergeVersionsAsync(movieFolder, cancellationToken).ConfigureAwait(false)
             : 0;
 
         progress.Report(95);
@@ -256,6 +254,19 @@ public sealed class LibrarySync
             VersionsMerged = versionsMerged,
             ItemsRemoved = removed
         };
+    }
+
+    private async Task UpdatePlaybackUrlsAsync(IEnumerable<BaseItem> items, PluginConfiguration config, CancellationToken cancellationToken)
+    {
+        foreach (var item in items)
+        {
+            if (!Uri.TryCreate(item.Path, UriKind.Absolute, out var old)) continue;
+            var name = Uri.UnescapeDataString(Path.GetFileName(old.AbsolutePath));
+            var url = LinkResolver.BuildUrl(config.PublicBaseUrl, item.GetProviderId(LinkProviderId)!, name);
+            if (item.Path == url && !_repairedProviderIds.Contains(item.Id)) continue;
+            item.Path = url;
+            await item.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static string MovieLibraryPath(PluginConfiguration config)
@@ -276,7 +287,7 @@ public sealed class LibrarySync
                 continue;
             }
 
-            releases.Add(ReleaseFingerprint(Uri.UnescapeDataString(Path.GetFileName(item.Path)), item.Size.Value));
+            releases.Add(ReleaseFingerprint(Uri.UnescapeDataString(Path.GetFileName(new Uri(item.Path).AbsolutePath)), item.Size.Value));
         }
 
         return releases;
@@ -291,6 +302,7 @@ public sealed class LibrarySync
         // ProviderIds has to be asked for by name. BaseItemRepository.ApplyNavigations only joins
         // the provider table when the query's DtoOptions contain that field, so a query without it
         // returns every item with an empty ProviderIds and the whole library reads as unknown.
+        // Settings also loads metadata field locks, which must survive subsequent item updates.
         var query = new InternalItemsQuery
         {
             IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Episode },
@@ -298,7 +310,7 @@ public sealed class LibrarySync
             Recursive = true,
             DtoOptions = new MediaBrowser.Controller.Dto.DtoOptions(false)
             {
-                Fields = new[] { ItemFields.ProviderIds }
+                Fields = new[] { ItemFields.ProviderIds, ItemFields.Settings }
             }
         };
 
@@ -307,6 +319,22 @@ public sealed class LibrarySync
         foreach (var item in _libraryManager.GetItemList(query))
         {
             var key = item.GetProviderId(LinkProviderId);
+            // Older builds saved version merges without loading ProviderIds, which erased this
+            // association. Recover only paths pointing at this plugin's exact stream route.
+            if (string.IsNullOrEmpty(key) && Uri.TryCreate(item.Path, UriKind.Absolute, out var uri))
+            {
+                var marker = uri.AbsolutePath.IndexOf("/RdZurg/Stream/", StringComparison.Ordinal);
+                if (marker >= 0)
+                {
+                    var candidate = uri.AbsolutePath[(marker + "/RdZurg/Stream/".Length)..].Split('/')[0];
+                    if (StreamAccess.IsValidKey(candidate))
+                    {
+                        key = candidate;
+                        item.SetProviderId(LinkProviderId, key);
+                        _repairedProviderIds.Add(item.Id);
+                    }
+                }
+            }
             if (!string.IsNullOrEmpty(key))
             {
                 map[key] = item;
@@ -333,7 +361,7 @@ public sealed class LibrarySync
         }
 
         var url = LinkResolver.BuildUrl(config.PublicBaseUrl, key, filePath);
-        var id = builder.IdFor(url, typeof(Movie));
+        var id = builder.IdFor("rd-zurg-movie:" + key, typeof(Movie));
 
         if (_libraryManager.GetItemById(id) is not null)
         {
@@ -368,6 +396,7 @@ public sealed class LibrarySync
         };
 
         movie.SetProviderId(LinkProviderId, key);
+        known[key] = movie;
         return movie;
     }
 
@@ -401,7 +430,7 @@ public sealed class LibrarySync
 
         var episodeNumber = parsed.EpisodeNumber!.Value;
         var url = LinkResolver.BuildUrl(config.PublicBaseUrl, key, filePath);
-        var id = builder.IdFor(url, typeof(Episode));
+        var id = builder.IdFor("rd-zurg-episode:" + key, typeof(Episode));
 
         if (_libraryManager.GetItemById(id) is not null)
         {
@@ -430,6 +459,7 @@ public sealed class LibrarySync
         episode.PresentationUniqueKey = episode.CreatePresentationUniqueKey();
         episode.SetProviderId(LinkProviderId, key);
         season.AddChild(episode);
+        known[key] = episode;
         return true;
     }
 
@@ -516,21 +546,21 @@ public sealed class LibrarySync
             IncludeItemTypes = new[] { BaseItemKind.Movie },
             TopParentIds = new[] { movieFolder.Id },
             Recursive = true,
-            DtoOptions = new MediaBrowser.Controller.Dto.DtoOptions(false)
+            DtoOptions = new MediaBrowser.Controller.Dto.DtoOptions(false) { Fields = new[] { ItemFields.ProviderIds, ItemFields.Settings } }
         };
 
         var merged = 0;
 
         var groups = _libraryManager.GetItemList(query)
             .OfType<Movie>()
+            .Where(m => m.ProductionYear.HasValue && !string.IsNullOrEmpty(m.GetProviderId(LinkProviderId)))
             .GroupBy(
                 m => string.Format(
                     CultureInfo.InvariantCulture,
                     "{0}|{1}",
                     m.Name,
                     m.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "?"),
-                StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1);
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in groups)
         {
@@ -539,12 +569,8 @@ public sealed class LibrarySync
             // The biggest file keeps the poster: it is the version most likely to be the best source.
             var ordered = group.OrderByDescending(m => m.Size ?? 0).ThenBy(m => m.Id).ToList();
             var primary = ordered[0];
+            if (ordered.Count == 1 && !primary.PrimaryVersionId.HasValue && primary.LinkedAlternateVersions.Length == 0) continue;
             var alternates = ordered.Skip(1).Where(m => m.PrimaryVersionId != primary.Id).ToList();
-
-            if (alternates.Count == 0)
-            {
-                continue;
-            }
 
             foreach (var alternate in alternates)
             {

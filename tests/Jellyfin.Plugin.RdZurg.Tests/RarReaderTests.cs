@@ -25,6 +25,26 @@ public class RarReaderTests
 
     private static byte[] Fixture() => Convert.FromHexString(RealDebridRar4Header);
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void RejectsSplitOrEncryptedMembers(int flag)
+    {
+        var bytes = Fixture();
+        bytes[23] |= (byte)flag;
+        Assert.False(RarReader.TryGetPrimaryEntry(bytes, out _));
+    }
+
+    [Fact]
+    public void NeverReadsANameBeyondItsDeclaredHeader()
+    {
+        var bytes = Fixture();
+        bytes[25] = 32;
+        bytes[26] = 0;
+        Assert.False(RarReader.TryGetPrimaryEntry(bytes, out _));
+    }
+
     [Fact]
     public void RecognisesTheArchiveRealDebridActuallyServes()
     {

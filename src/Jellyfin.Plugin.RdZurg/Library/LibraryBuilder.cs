@@ -57,8 +57,17 @@ public sealed class LibraryBuilder
         CollectionTypeOptions collectionType,
         CancellationToken cancellationToken)
     {
-        var existing = _libraryManager.GetVirtualFolders()
-            .Find(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+        var libraries = _libraryManager.GetVirtualFolders();
+        var existing = libraries.Find(v => v.Locations.Contains(path, StringComparer.Ordinal));
+        if (existing is null && libraries.Any(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("The library name is already used by a library not owned by RD zurg: " + name);
+        }
+
+        if (existing is not null && existing.CollectionType != collectionType)
+        {
+            throw new InvalidOperationException("The RD zurg library has the wrong collection type: " + name);
+        }
 
         if (existing is null)
         {
@@ -96,7 +105,8 @@ public sealed class LibraryBuilder
             return null;
         }
 
-        var physicalId = collectionFolder.PhysicalFolderIds.FirstOrDefault();
+        var physicalId = collectionFolder.PhysicalFolderIds
+            .FirstOrDefault(id => string.Equals(_libraryManager.GetItemById(id)?.Path, path, StringComparison.Ordinal));
         if (physicalId.Equals(Guid.Empty))
         {
             _logger.LogError(

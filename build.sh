@@ -1,42 +1,26 @@
 #!/usr/bin/env bash
-# Builds the plugin and lays it out the way Jellyfin expects to find it.
-#
-#   ./build.sh                       -> artifacts/rd-zurg_<version>/
-#   ./build.sh /path/to/jellyfin/config   -> also installs it there
+# ./build.sh [Jellyfin data directory containing plugins/]
 set -euo pipefail
-
-VERSION="${VERSION:-1.0.0.0}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUT="$ROOT/artifacts/rd-zurg_$VERSION"
+VERSION="${VERSION:-$(python3 -c 'import sys,xml.etree.ElementTree as E; print(E.parse(sys.argv[1]).findtext(".//Version"))' "$ROOT/src/Jellyfin.Plugin.RdZurg/Jellyfin.Plugin.RdZurg.csproj")}"
+# Validate before constructing paths or passing properties to MSBuild.
+python3 - "$VERSION" <<'CHECK'
+import re, sys
+version = sys.argv[1]
+if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version) or any(int(x) > 65534 for x in version.split('.')):
+    raise SystemExit('VERSION must contain four integer components between 0 and 65534')
+CHECK
 
-dotnet build "$ROOT/src/Jellyfin.Plugin.RdZurg" -c Release
+dotnet build "$ROOT/src/Jellyfin.Plugin.RdZurg" -c Release -p:Version="$VERSION" -p:AssemblyVersion="$VERSION" -p:FileVersion="$VERSION"
+python3 "$ROOT/scripts/package.py" "$ROOT" "$VERSION"
 
-rm -rf "$OUT"
-mkdir -p "$OUT"
-cp "$ROOT/src/Jellyfin.Plugin.RdZurg/bin/Release/net10.0/Jellyfin.Plugin.RdZurg.dll" "$OUT/"
-
-cat > "$OUT/meta.json" <<JSON
-{
-  "category": "Metadata",
-  "changelog": "",
-  "description": "Your Real-Debrid library in Jellyfin, without a mount.",
-  "guid": "4d0b1a37-1f1c-4a3e-9f5c-2e6a7b8c9d01",
-  "name": "RD zurg",
-  "overview": "Serves a Real-Debrid account as a Jellyfin library",
-  "owner": "debridmediamanager",
-  "targetAbi": "12.0.0.0",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "version": "$VERSION",
-  "status": "Active",
-  "autoUpdate": false
-}
-JSON
-
-echo "built $OUT"
-
-if [[ $# -ge 1 ]]; then
+if [[ $# -gt 1 ]]; then
+  echo "Usage: ./build.sh [Jellyfin data directory containing plugins/]" >&2
+  exit 2
+fi
+if [[ $# -eq 1 ]]; then
   DEST="$1/plugins/rd-zurg_$VERSION"
   mkdir -p "$DEST"
-  cp "$OUT"/* "$DEST/"
-  echo "installed into $DEST (restart Jellyfin to load it)"
+  cp "$ROOT/artifacts/rd-zurg_$VERSION/Jellyfin.Plugin.RdZurg.dll" "$ROOT/artifacts/rd-zurg_$VERSION/meta.json" "$DEST/"
+  echo "Installed into $DEST. Restart Jellyfin, then run the RD zurg sync."
 fi

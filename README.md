@@ -1,81 +1,91 @@
-# rd-zurg-for-jellyfin
+# RD zurg for Jellyfin
 
-Your Real-Debrid library in Jellyfin. No mount, no rclone, no second service.
-
-The plugin injects your account into two Jellyfin libraries as ordinary movies and episodes. Each
-item points at an endpoint the plugin itself serves, which mints a fresh Real-Debrid link at the
-moment you press play. Nothing time-limited is stored, so links cannot rot in the database.
-
-## What it does
-
-- Builds **Movies** and **Shows** libraries from your account. Series, seasons and episodes, not a
-  flat pile of files.
-- **Redirects** for a plain release, so the bytes go straight from Real-Debrid's CDN to your player
-  and the server carries none of them.
-- **Reads through RAR archives.** Real-Debrid regularly serves a release as a RAR without saying so.
-  Its file list claims `X.mkv` and the link serves `X.mkv.rar`. On a sample of 32 torrents this was
-  10 of them. Those are served from inside the archive instead of being handed to a player that
-  cannot open them.
-- **One entry per film.** Byte-identical re-adds are dropped; genuinely different releases of the
-  same title become selectable versions of one item.
-- **Incremental.** A resync only fetches details for new arrivals. On a 400 torrent account a first
-  pass takes about two minutes and every pass after that takes thirty seconds.
-- **Tidies up.** Items whose torrent is gone from the account are removed.
-- **Paced.** Real-Debrid publishes 250 requests a minute and counts refused ones against the
-  allowance, so every call goes through one gate and a 429 stops the pass rather than retrying.
+A standalone Real-Debrid library plugin for **Jellyfin 12.0** and its .NET 10 runtime.
+No filesystem mount, rclone process or separate zurg service is required. Compatibility with
+other Jellyfin major versions is not implied.
 
 ## Install
 
-Requires Jellyfin 12.0 or newer.
+1. Stop Jellyfin and back up its data directory.
+2. Extract `rd-zurg_1.0.1.0.zip` into `<Jellyfin data>/plugins/rd-zurg_1.0.1.0/`.
+   The DLL and `meta.json` must be directly inside that directory. Verify the adjacent SHA-256 file.
+3. Start Jellyfin. Open **Dashboard → Plugins → RD zurg → Settings**.
+4. Enter the private token from [Real-Debrid](https://real-debrid.com/apitoken) and your server URL.
+5. Run **Dashboard → Scheduled Tasks → Sync Real-Debrid library**. The default schedule is every six hours.
 
-```bash
-./build.sh /path/to/jellyfin/config
-```
+For the official Docker image, the data directory is `/config`; native packages commonly use
+`/var/lib/jellyfin`. Use the actual data path shown in your Jellyfin dashboard.
 
-Then restart Jellyfin, open **Dashboard → Plugins → RD zurg**, and set:
+Upgrading from 1.0.0.0 requires a sync before playback: old unsigned URLs are deliberately rejected.
+The sync updates existing items in place, retaining their IDs and associated watch history.
 
-| Setting | What it is |
+## Configure
+
+| Setting | Production behavior |
 |---|---|
-| API token | From [real-debrid.com/apitoken](https://real-debrid.com/apitoken) |
-| Server URL | How this server is reached, e.g. `http://192.168.1.10:8096`. Your players resolve through it, so `localhost` is not enough |
-| Torrent limit | How many of the newest torrents to take. 0 is all of them |
+| API token | Use a private API token. OAuth access-token renewal is not implemented. |
+| Server URL | An HTTP(S) address reachable by Jellyfin and its players, including any reverse-proxy base path. Use HTTPS outside a trusted network. Run a sync after changing it. |
+| Torrent limit | `0` lists the whole account. A positive limit imports recent torrents and preserves entries outside that window. Start with a small limit to check naming and playback. |
+| API interval | At least 300 ms between API calls. Link generation is separately spaced by five seconds. A 429 pauses new requests for ten minutes; it is not retried within a request. |
+| Library names | Two distinct names, used on first creation. Existing libraries are identified by their owned directories; rename them through Jellyfin's library settings. Name collisions with unrelated libraries fail safely. |
+| Remove vanished items | Cleanup only follows an unlimited, successful listing and sync. Incomplete, overlapping or changing pagination cannot authorize cleanup. Files and provider torrents are never deleted. |
+| Merge releases | Movies with the same title and known year become selectable versions. Review metadata matches when names are ambiguous. |
+| Look inside RAR archives | Supports complete, unencrypted stored video members whose headers are available in the initial 64 KiB. Compressed, split and encrypted archives are rejected. |
+| Redirect plain files | **Off by default.** All bytes pass through Jellyfin's server connection. Enable only when server and players use the same public IP; archives still use the server. |
 
-Then run **Dashboard → Scheduled Tasks → Sync Real-Debrid library**. It also runs every six hours.
+Configure media-scanning features deliberately: chapter images, trickplay and realtime filesystem
+monitoring are disabled when these libraries are created. Enabling expensive extraction or running
+many cold playback probes can increase bandwidth and provider requests.
 
-## How it works
+## Design and access control
 
-Jellyfin's library layer is filesystem-bound but its playback layer is not: a media source whose
-protocol is not `File` is handed to ffmpeg, and to clients, as a URL. The plugin creates items whose
-path is an `http://` URL rather than a file, which the scanner then leaves alone, because it only
-enumerates and only reaps items whose protocol is `File`.
+The plugin creates ordinary Jellyfin movie, series, season and episode records. Media paths point
+to the plugin's HTTP endpoint, which resolves fresh provider URLs at playback time. Filesystem
+scans leave the remote media records in place. Library anchor directories are owned by the plugin;
+local media libraries are not used as import targets.
 
-```
-Jellyfin item path
-  -> http://<server>/RdZurg/Stream/<link key>/<release>.mkv
-       -> plain release      302 to the Real-Debrid CDN
-       -> RAR-wrapped        served from inside the archive, range by range
-```
+Playback URLs carry an HMAC-SHA256 signature scoped to one content key and the current account.
+This lets ffmpeg and external players fetch an authorized file without a Jellyfin session and
+prevents anonymous callers from spending the account token on arbitrary Real-Debrid links.
+A signed URL is a bearer credential: anyone who receives it can play that file. Keep media URLs,
+configuration backups and playback logs private. Changing `StreamSecret` to a new 32-byte random
+hex value revokes old capabilities; changing the API token also revokes them. Run a sync afterward.
+Removing an item from a library alone does not revoke an already shared URL.
 
-A stored RAR member is a contiguous run of bytes inside the archive, so serving it is offset
-arithmetic and every seek stays a range request against the CDN. Compressed and multi-volume
-archives are detected and left out of the library rather than published as items that will not play.
+Provider links are cached for 30 minutes, bounded to 1,024 entries and cleared when account or
+playback settings change. Cold resolutions are serialized; warm reads do not wait for other
+files to resolve. A player cancelling a read to seek retains its cached source. Provider failures
+invalidate the affected source for the next request.
 
-## What it is not
+For an archive, the plugin translates media byte ranges to archive offsets. It validates the
+upstream status, range and length before sending headers, bounds probe memory and response copies,
+and applies a 30-second inactivity timeout. Invalid ranges return 416. Unsupported archives return
+422; unavailable providers return 502. Missing setup returns 503 and invalid signatures return 401.
 
-- **Not multi-provider.** Real-Debrid only. TorBox, AllDebrid and Usenet are not here.
-- **Not a mount.** Nothing outside Jellyfin can read this library. If you want Infuse, rclone, or an
-  \*arr stack pointed at the same files, you want [zurg](https://github.com/debridmediamanager/zurg).
-- **Not a repair tool.** A link that has aged out fails at playback and is retried on the next
-  request. There is no background re-verification.
-- **No compressed archives.** Only stored ones, which is what Real-Debrid actually serves.
+## Scope and limitations
 
-## Development
+- Real-Debrid only; no automatic torrent repair, re-addition or provider-account management.
+- Episodes need recognizable season/episode naming. Absolute-numbered anime and ambiguous release
+  names can require manual metadata correction; the plugin does not promise perfect classification.
+- Archive compatibility is checked when a file is played, not during every library sync. Unsupported
+  releases can appear in the library and return a controlled playback error.
+- A complete sync costs listing calls plus detail calls for unknown contents. Season packs containing
+  subtitles or other unimported files may need detail calls on subsequent passes.
+- Disabling or uninstalling the plugin does not delete its library records. Their playback endpoints
+  stop working; remove the plugin's libraries separately in Jellyfin if they are no longer wanted.
+
+## Build and verification
+
+Requires the .NET 10 SDK, Python 3 and Bash for packaging. Jellyfin host assemblies are compile-time
+references and are not bundled inside the plugin ZIP.
 
 ```bash
-dotnet build src/Jellyfin.Plugin.RdZurg -c Release
-dotnet test tests/Jellyfin.Plugin.RdZurg.Tests
+dotnet test tests/Jellyfin.Plugin.RdZurg.Tests -c Release
 ./build.sh
+python3 scripts/verify-package.py
 ```
 
-The RAR reader's tests run against the first 200 bytes of an archive exactly as Real-Debrid served
-it, so the parser is pinned to real output rather than to a fixture someone generated.
+`./build.sh /path/to/jellyfin/data` also installs the built DLL and metadata. Restart Jellyfin afterward.
+`VERSION=1.0.2.0 ./build.sh` overrides both the assembly and package versions together. The project
+file is the default version source. CI builds, runs tests, packages and verifies every main push.
+See [release operations](docs/RELEASING.md) for distribution and the required live release checks.

@@ -1,12 +1,14 @@
-using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net;
-using System.Net.Http;
+using System.IO;
+using System.Linq;
 using System.Net.Http.Headers;
+using System.Net.Http;
+using System.Net;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Threading;
+using System;
 
 namespace Jellyfin.Plugin.RdZurg.RealDebrid;
 
@@ -52,6 +54,8 @@ public sealed class RealDebridClient
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
     private static readonly SemaphoreSlim _gate = new(1, 1);
     private static DateTime _lastCall = DateTime.MinValue;
+    private static DateTime _lastUnrestrict = DateTime.MinValue;
+    private static DateTime _blockedUntil = DateTime.MinValue;
 
     private readonly HttpClient _http;
     private readonly string _token;
@@ -65,7 +69,7 @@ public sealed class RealDebridClient
     {
         _http = http;
         _token = token;
-        _minInterval = TimeSpan.FromMilliseconds(Math.Max(minRequestIntervalMs, 0));
+        _minInterval = TimeSpan.FromMilliseconds(Math.Max(minRequestIntervalMs, 300));
     }
 
     /// <summary>
@@ -79,11 +83,21 @@ public sealed class RealDebridClient
         var all = new List<RdTorrent>();
         var page = 1;
         const int Limit = 100;
+        long? expectedCount = null;
+        var ids = new HashSet<string>(StringComparer.Ordinal);
 
         while (max <= 0 || all.Count < max)
         {
             var url = string.Format(CultureInfo.InvariantCulture, "{0}/torrents?page={1}&limit={2}", Base, page, Limit);
             using var response = await SendAsync(HttpMethod.Get, url, null, cancellationToken).ConfigureAwait(false);
+
+            if (response.Headers.TryGetValues("X-Total-Count", out var values)
+                && long.TryParse(values.FirstOrDefault(), CultureInfo.InvariantCulture, out var count))
+            {
+                if (expectedCount.HasValue && expectedCount != count)
+                    throw new IOException("The account changed during pagination; sync again before cleanup.");
+                expectedCount = count;
+            }
 
             // Past the end is a 204, not an empty array, and page 0 is a 204 as well - hence page 1.
             if (response.StatusCode == HttpStatusCode.NoContent)
@@ -95,14 +109,20 @@ public sealed class RealDebridClient
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var batch = JsonSerializer.Deserialize<List<RdTorrent>>(body, _json);
 
-            if (batch is null || batch.Count == 0)
+            if (batch is null) throw new IOException("Real-Debrid returned a null torrent listing.");
+            if (batch.Count == 0)
             {
                 break;
             }
 
+            if (batch.Any(t => !ids.Add(t.Id)))
+                throw new IOException("Real-Debrid returned overlapping pages; cleanup is unsafe.");
             all.AddRange(batch);
             page++;
         }
+
+        if (max <= 0 && expectedCount.HasValue && all.Count != expectedCount)
+            throw new IOException("Real-Debrid returned an incomplete listing; cleanup is unsafe.");
 
         if (max > 0 && all.Count > max)
         {
@@ -121,10 +141,8 @@ public sealed class RealDebridClient
         var url = string.Format(CultureInfo.InvariantCulture, "{0}/torrents/info/{1}", Base, id);
         using var response = await SendAsync(HttpMethod.Get, url, null, cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return null;
-        }
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return JsonSerializer.Deserialize<RdTorrentInfo>(body, _json);
@@ -160,7 +178,7 @@ public sealed class RealDebridClient
         if (!response.IsSuccessStatusCode)
         {
             throw new RealDebridRefusedException(
-                string.Format(CultureInfo.InvariantCulture, "unrestrict returned {0}: {1}", (int)response.StatusCode, body));
+                string.Format(CultureInfo.InvariantCulture, "Real-Debrid unrestrict returned HTTP {0}.", (int)response.StatusCode));
         }
 
         return JsonSerializer.Deserialize<RdUnrestricted>(body, _json);
@@ -191,7 +209,7 @@ public sealed class RealDebridClient
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        await PaceAsync(cancellationToken).ConfigureAwait(false);
+        await PaceAsync(url.EndsWith("/unrestrict/link", StringComparison.Ordinal), cancellationToken).ConfigureAwait(false);
 
         using var request = new HttpRequestMessage(method, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
@@ -201,6 +219,7 @@ public sealed class RealDebridClient
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
         {
+            _blockedUntil = DateTime.UtcNow.AddMinutes(10);
             response.Dispose();
             throw new RealDebridRefusedException("Real-Debrid answered 429. Refused requests count against the budget, so this pass stops here.");
         }
@@ -208,7 +227,7 @@ public sealed class RealDebridClient
         return response;
     }
 
-    private async Task PaceAsync(CancellationToken cancellationToken)
+    private async Task PaceAsync(bool unrestrict, CancellationToken cancellationToken)
     {
         if (_minInterval <= TimeSpan.Zero)
         {
@@ -218,13 +237,23 @@ public sealed class RealDebridClient
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (_blockedUntil > DateTime.UtcNow)
+                throw new RealDebridRefusedException("Real-Debrid requests are paused after a rate-limit response. Try again later.");
             var wait = _minInterval - (DateTime.UtcNow - _lastCall);
+            if (unrestrict)
+            {
+                var linkWait = TimeSpan.FromSeconds(5) - (DateTime.UtcNow - _lastUnrestrict);
+                if (linkWait > wait) wait = linkWait;
+            }
             if (wait > TimeSpan.Zero)
             {
                 await Task.Delay(wait, cancellationToken).ConfigureAwait(false);
             }
 
+            if (_blockedUntil > DateTime.UtcNow)
+                throw new RealDebridRefusedException("Real-Debrid requests are paused after a rate-limit response.");
             _lastCall = DateTime.UtcNow;
+            if (unrestrict) _lastUnrestrict = _lastCall;
         }
         finally
         {

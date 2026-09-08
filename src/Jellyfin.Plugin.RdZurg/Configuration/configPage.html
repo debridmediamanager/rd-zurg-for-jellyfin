@@ -12,12 +12,12 @@
             <input is="emby-input" type="password" id="ApiKey" label="API token" required />
             <div class="fieldDescription">
               From <a is="emby-linkbutton" class="button-link" href="https://real-debrid.com/apitoken" target="_blank" rel="noopener">real-debrid.com/apitoken</a>.
-              Stored in plain text in the plugin's configuration file, like every other Jellyfin plugin credential.
+              Use the private API token. OAuth access tokens expire and are not refreshed by this plugin.
             </div>
           </div>
 
           <div class="inputContainer">
-            <input is="emby-input" type="text" id="PublicBaseUrl" label="Server URL" required />
+            <input is="emby-input" type="url" id="PublicBaseUrl" label="Server URL" required />
             <div class="fieldDescription">
               How this server is reached, for example <code>http://192.168.1.10:8096</code>. Every library
               item points here, so it must be reachable by your players as well as by the server itself.
@@ -28,15 +28,15 @@
             <input is="emby-input" type="number" id="MaxTorrents" label="Torrent limit" min="0" step="1" />
             <div class="fieldDescription">
               How many of the newest torrents to take. 0 means the whole account. A first pass costs
-              roughly one API call per torrent.
+              roughly one API call per torrent. A limited sync preserves existing entries; removal requires a complete account sync (0).
             </div>
           </div>
 
           <div class="inputContainer">
-            <input is="emby-input" type="number" id="MinRequestIntervalMs" label="Minimum gap between API calls (ms)" min="0" step="10" />
+            <input is="emby-input" type="number" id="MinRequestIntervalMs" label="Minimum gap between API calls (ms)" min="300" max="60000" step="10" />
             <div class="fieldDescription">
               Real-Debrid publishes 250 requests per minute and counts refused ones against the
-              allowance, so 300 ms leaves headroom. Lower it only if you know why.
+              allowance, so at least 300 ms is required. Link generation also has a separate five-second interval.
             </div>
           </div>
         </div>
@@ -47,16 +47,16 @@
           </div>
 
           <div class="inputContainer">
-            <input is="emby-input" type="text" id="MovieLibraryName" label="Movie library name" />
+            <input is="emby-input" type="text" id="MovieLibraryName" label="Movie library name" required />
           </div>
 
           <div class="inputContainer">
-            <input is="emby-input" type="text" id="ShowLibraryName" label="Show library name" />
+            <input is="emby-input" type="text" id="ShowLibraryName" label="Show library name" required />
           </div>
 
           <div class="fieldDescription" style="margin-bottom:1em;">
             Movies and shows need separate libraries. Jellyfin chooses metadata providers by library
-            type, and both are created for you on the first sync.
+            type, and both are created for you on the first sync. These names apply when creating libraries. Rename existing libraries in Jellyfin’s library settings.
           </div>
 
           <div class="checkboxContainer checkboxContainer-withDescription">
@@ -76,7 +76,7 @@
               <span>Remove items that are gone from Real-Debrid</span>
             </label>
             <div class="fieldDescription checkboxFieldDescription">
-              Deletes library entries whose torrent no longer exists in the account. Leave this off
+              After a complete account sync, deletes entries whose torrent no longer exists. Leave this off
               if you want a deleted torrent to keep its entry until you clean it up yourself.
             </div>
           </div>
@@ -89,9 +89,20 @@
             <div class="fieldDescription checkboxFieldDescription">
               Real-Debrid often serves a release as a RAR without saying so: the file list claims
               <code>X.mkv</code> and the link serves <code>X.mkv.rar</code>. With this on, a stored
-              archive is read through and the file inside is served. With it off, such releases are
-              left out rather than added as items that will not play.
+              archive is read through and the file inside is served. With it off, archive playback returns a controlled error. Unsupported archives can still appear in the library because checking every file during sync would require many extra provider calls.
             </div>
+          </div>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label class="emby-checkbox-label">
+            <input is="emby-checkbox" type="checkbox" id="RedirectDirectStreams" />
+            <span>Redirect plain files directly to Real-Debrid</span>
+          </label>
+          <div class="fieldDescription checkboxFieldDescription">
+            Leave off for remote players: the server streams all media through its own connection.
+            Enable only when players and the server share the same public internet address.
+            Archives always stream through the server.
           </div>
         </div>
 
@@ -111,7 +122,12 @@
 
       var textFields = ['ApiKey', 'PublicBaseUrl', 'MovieLibraryName', 'ShowLibraryName'];
       var numberFields = ['MaxTorrents', 'MinRequestIntervalMs'];
-      var checkboxFields = ['MergeDuplicateVersions', 'RemoveVanishedItems', 'UnwrapArchives'];
+      var checkboxFields = ['MergeDuplicateVersions', 'RemoveVanishedItems', 'UnwrapArchives', 'RedirectDirectStreams'];
+
+      function showError() {
+        Dashboard.hideLoadingMsg();
+        Dashboard.alert({ message: 'Could not load or save settings. Check the server connection, URL, library names and API interval, then try again.' });
+      }
 
       document.querySelector('#RdZurgConfigPage').addEventListener('pageshow', function () {
         Dashboard.showLoadingMsg();
@@ -126,7 +142,7 @@
           });
 
           Dashboard.hideLoadingMsg();
-        });
+        }).catch(showError);
       });
 
       document.querySelector('#RdZurgConfigForm').addEventListener('submit', function (e) {
@@ -146,10 +162,10 @@
             config[id] = document.querySelector('#' + id).checked;
           });
 
-          ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+          return ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
             Dashboard.processPluginConfigurationUpdateResult(result);
           });
-        });
+        }).catch(showError);
 
         return false;
       });

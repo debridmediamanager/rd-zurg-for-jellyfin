@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using Jellyfin.Plugin.RdZurg.Library;
 
 namespace Jellyfin.Plugin.RdZurg.Archive;
 
@@ -74,7 +75,7 @@ public static class RarReader
 
         foreach (var candidate in ListEntries(head))
         {
-            if (candidate.IsStored && candidate.Length > best)
+            if (candidate.IsStored && ReleaseNames.IsVideo(candidate.Name) && candidate.Length > best)
             {
                 best = candidate.Length;
                 entry = candidate;
@@ -106,40 +107,50 @@ public static class RarReader
             }
 
             var headerStart = pos;
+            if (headerSize > head.Length - headerStart) break;
             var headerEnd = headerStart + (int)headerSize;
             if (headerEnd > head.Length || headerEnd < headerStart)
             {
                 break;
             }
 
-            if (!TryReadVInt(head, ref pos, out var headerType)
-                || !TryReadVInt(head, ref pos, out var headerFlags))
+            var header = head[..headerEnd];
+            if (!TryReadVInt(header, ref pos, out var headerType)
+                || !TryReadVInt(header, ref pos, out var headerFlags))
             {
                 break;
             }
 
             long extraSize = 0;
-            if ((headerFlags & 0x0001) != 0 && !TryReadVInt(head, ref pos, out extraSize))
+            if ((headerFlags & 0x0001) != 0 && !TryReadVInt(header, ref pos, out extraSize))
             {
                 break;
             }
 
             long dataSize = 0;
-            if ((headerFlags & 0x0002) != 0 && !TryReadVInt(head, ref pos, out dataSize))
+            if ((headerFlags & 0x0002) != 0 && !TryReadVInt(header, ref pos, out dataSize))
             {
                 break;
             }
 
+            if (extraSize > headerEnd - pos) break;
+            if (headerType == 4) return new List<RarEntry>(); // Encrypted headers.
+            if (headerType == 1 && (!TryReadVInt(header, ref pos, out var archiveFlags) || (archiveFlags & 1) != 0))
+                return new List<RarEntry>(); // Volume sets are unsupported.
+
             // 2 = file, 3 = service (recovery records and the like, which are not content).
-            if (headerType == 2)
+            if (headerType == 2 && (headerFlags & 0x18) == 0)
             {
-                var entry = ReadRar5FileHeader(head, pos, headerEnd, dataSize, headerEnd);
+                var contentEnd = headerEnd - (int)extraSize;
+                var entry = HasEncryptedExtra(header, contentEnd, headerEnd) ? null
+                    : ReadRar5FileHeader(head[..contentEnd], pos, contentEnd, dataSize, headerEnd);
                 if (entry is not null)
                 {
                     entries.Add(entry);
                 }
             }
 
+            if (dataSize > head.Length - headerEnd) break;
             var next = headerEnd + (int)dataSize;
             if (next <= headerStart)
             {
@@ -195,7 +206,7 @@ public static class RarReader
         // Bits 7 to 9 hold the method; 0 is store. An unknown unpacked size (flag 0x0008) means the
         // length cannot be trusted, so fall back to the data size the header already gave us.
         var method = (compressionInfo >> 7) & 0x07;
-        var isStored = method == 0;
+        var isStored = method == 0 && unpackedSize == dataSize;
         var length = (fileFlags & 0x0008) != 0 ? dataSize : unpackedSize;
 
         if (length <= 0)
@@ -224,17 +235,18 @@ public static class RarReader
             var headerFlags = BitConverter.ToUInt16(head.Slice(pos + 3, 2));
             var headerSize = BitConverter.ToUInt16(head.Slice(pos + 5, 2));
 
-            if (headerSize < 7)
+            if (headerSize < 7 || headerSize > head.Length - headerStart)
             {
                 break;
             }
 
+            if (headerType == 0x73 && (headerFlags & 0x0081) != 0) return new List<RarEntry>();
             long addedSize = 0;
 
             // 0x74 is a file header; 0x8000 marks any header that is followed by a data area.
             if (headerType == 0x74)
             {
-                if (headerStart + 32 > head.Length)
+                if (headerSize < 32)
                 {
                     break;
                 }
@@ -248,7 +260,7 @@ public static class RarReader
                 // 0x100 adds the high 32 bits of both sizes, ahead of the name.
                 if ((headerFlags & 0x0100) != 0)
                 {
-                    if (headerStart + 40 > head.Length)
+                    if (headerSize < 40)
                     {
                         break;
                     }
@@ -260,7 +272,7 @@ public static class RarReader
 
                 addedSize = packedSize;
 
-                if (namePos + nameSize <= head.Length && nameSize > 0)
+                if (namePos + nameSize <= headerStart + headerSize && nameSize > 0)
                 {
                     var name = Encoding.UTF8.GetString(head.Slice(namePos, nameSize));
                     var dataOffset = headerStart + headerSize;
@@ -272,7 +284,8 @@ public static class RarReader
                             Name = name,
                             DataOffset = dataOffset,
                             Length = unpackedSize,
-                            IsStored = method == 0x30
+                            IsStored = method == 0x30 && packedSize == unpackedSize
+                                && (headerFlags & 0x0007) == 0 && (headerFlags & 0x00e0) != 0x00e0
                         });
                     }
                 }
@@ -287,6 +300,7 @@ public static class RarReader
                 addedSize = BitConverter.ToUInt32(head.Slice(headerStart + 7, 4));
             }
 
+            if (addedSize < 0 || addedSize > head.Length - headerStart - headerSize) break;
             var next = headerStart + headerSize + (int)addedSize;
             if (next <= headerStart)
             {
@@ -299,6 +313,18 @@ public static class RarReader
         return entries;
     }
 
+    private static bool HasEncryptedExtra(ReadOnlySpan<byte> head, int pos, int end)
+    {
+        while (pos < end)
+        {
+            if (!TryReadVInt(head, ref pos, out var size) || size <= 0 || size > end - pos) return true;
+            var next = pos + (int)size;
+            if (!TryReadVInt(head[..next], ref pos, out var type) || type == 1) return true;
+            pos = next;
+        }
+        return false;
+    }
+
     /// <summary>Reads RAR5's variable-length integer: seven bits per byte, high bit continues.</summary>
     private static bool TryReadVInt(ReadOnlySpan<byte> buffer, ref int pos, out long value)
     {
@@ -308,6 +334,7 @@ public static class RarReader
         while (pos < buffer.Length && shift < 64)
         {
             var b = buffer[pos++];
+            if (shift >= 63) return false; // Sizes must fit a nonnegative Int64.
             value |= (long)(b & 0x7F) << shift;
 
             if ((b & 0x80) == 0)
