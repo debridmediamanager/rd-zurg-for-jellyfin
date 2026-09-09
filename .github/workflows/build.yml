@@ -62,6 +62,12 @@ jobs:
         with:
           name: rd-zurg
           path: artifacts
+      - name: Publish to the DMM catalog
+        env:
+          DMM_PUBLISH_TOKEN: ${{ secrets.DMM_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 scripts/publish-to-dmm.py "artifacts/rd-zurg_${RELEASE_TAG#v}.zip"
+
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -31,6 +31,27 @@ manifest, so a manually installed plugin shows "Unknown" for both and a warning 
 details could not be read from the repository. That is cosmetic and the plugin works, but the only
 way to fill those fields is to publish a catalog and register its URL - see Distribution above.
 
+## Publishing to the DMM catalog
+
+A version tag publishes the built package to DMM's sponsor-gated Jellyfin plugin repository, so a
+sponsor's Jellyfin offers the new version in its catalog. The release job posts the ZIP and its card
+image to `/api/plugins/publish` with the `DMM_PUBLISH_TOKEN` repository secret; DMM stores them,
+computes the checksum from the bytes it stored, and merges this plugin's entry into the shared
+catalog without touching the other three.
+
+Publishing runs **before** the draft release is created, because an unpublished draft is easy to
+recover from and a release that never reached the catalog is the failure worth catching. A push to
+`main` publishes nothing.
+
+To publish by hand, from a checkout of the DMM repository:
+
+```bash
+DMM_PUBLISH_TOKEN=… npx tsx scripts/publish-jellyfin-plugins.ts --apply path/to/<slug>_<version>.zip
+```
+
+Either way the unpacked `artifacts/<slug>_<version>/` directory has to sit beside the ZIP, because
+that is where `meta.json` and the image are read from.
+
 ## Before tagging a version
 
 1. Update the project `Version` and `CHANGELOG.md`. Run the Release test suite, `./build.sh` and
