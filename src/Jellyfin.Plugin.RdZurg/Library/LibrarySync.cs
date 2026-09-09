@@ -531,6 +531,56 @@ public sealed class LibrarySync
         return season;
     }
 
+    /// <summary>Reads the release name back out of an item's playback URL.</summary>
+    /// <param name="path">The item's path.</param>
+    /// <returns>The release name, or <c>null</c> when the path is not one of ours.</returns>
+    /// <remarks>
+    /// The path is written by this plugin and is never touched by a metadata provider, so it is the
+    /// only durable record of what the release actually called itself.
+    /// </remarks>
+    public static string? ReleaseNameFromPath(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !Uri.TryCreate(path, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || !uri.AbsolutePath.Contains("/RdZurg/Stream/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var file = Uri.UnescapeDataString(Path.GetFileName(uri.AbsolutePath));
+        return string.IsNullOrEmpty(file) ? null : ReleaseNames.Humanise(Path.GetFileNameWithoutExtension(file));
+    }
+
+    /// <summary>
+    /// Whether two releases sharing this title may be folded into one film.
+    /// </summary>
+    /// <param name="name">The title parsed from the release name.</param>
+    /// <param name="productionYear">The year parsed from the release name.</param>
+    /// <returns>Whether the pair is safe to merge.</returns>
+    /// <remarks>
+    /// A year is what makes the grouping safe, and it must come from the <em>release name</em>.
+    /// Reading it off the item instead looks equivalent and is not: absolute-numbered anime such as
+    /// "One Piece - 1004" carries no season marker and no year, so every episode lands as its own
+    /// movie under the show's name; TMDb then matches the series and writes a ProductionYear onto
+    /// every one of them, after which they share a title and a year and any item-based guard
+    /// passes. Measured on a real account, that folded 155 One Piece episodes into a single film.
+    /// </remarks>
+    public static bool MayMerge(string? name, int? productionYear)
+        => !string.IsNullOrWhiteSpace(name) && productionYear.HasValue;
+
+    private (string? Name, int? Year) ReleaseIdentity(string? path)
+    {
+        var release = ReleaseNameFromPath(path);
+
+        if (release is null)
+        {
+            return (null, null);
+        }
+
+        var parsed = _libraryManager.ParseName(release);
+        return (parsed.Name, parsed.Year);
+    }
+
     /// <summary>
     /// Folds releases of one film into a single item with the rest behind it as versions.
     /// </summary>
@@ -551,15 +601,26 @@ public sealed class LibrarySync
 
         var merged = 0;
 
-        var groups = _libraryManager.GetItemList(query)
-            .OfType<Movie>()
-            .Where(m => m.ProductionYear.HasValue && !string.IsNullOrEmpty(m.GetProviderId(LinkProviderId)))
+        // Grouped on what this plugin parsed out of the release name, never on the item's current
+        // Name and ProductionYear. A metadata provider rewrites those - see MayMerge.
+        var movies = _libraryManager.GetItemList(query).OfType<Movie>().ToList();
+        var identities = new Dictionary<Guid, (string? Name, int? Year)>();
+
+        foreach (var movie in movies)
+        {
+            identities[movie.Id] = ReleaseIdentity(movie.Path) is var parsed && parsed.Name is not null
+                ? parsed
+                : (movie.Name, movie.ProductionYear);
+        }
+
+        var groups = movies
+            .Where(m => MayMerge(identities[m.Id].Name, identities[m.Id].Year) && !string.IsNullOrEmpty(m.GetProviderId(LinkProviderId)))
             .GroupBy(
                 m => string.Format(
                     CultureInfo.InvariantCulture,
                     "{0}|{1}",
-                    m.Name,
-                    m.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "?"),
+                    identities[m.Id].Name,
+                    identities[m.Id].Year?.ToString(CultureInfo.InvariantCulture) ?? "?"),
                 StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in groups)

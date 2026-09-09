@@ -1,3 +1,7 @@
+# 1.0.2.0
+
+- Group alternate versions on the year parsed from the release name rather than the item's ProductionYear. A metadata provider writes a year onto absolute-numbered anime that carries none, after which the existing guard passed and distinct episodes merged into one film. Measured on a real account: 155 One Piece episodes folded into a single item with 154 versions.
+
 # 1.0.1.0
 
 - Require signed per-file playback URLs before using the Real-Debrid account. Existing library paths migrate on sync without changing item IDs.

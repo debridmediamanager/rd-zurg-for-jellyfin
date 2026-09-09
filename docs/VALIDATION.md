@@ -1,49 +1,52 @@
-# Release validation: 1.0.1.0
+# Release validation: 1.0.2.0
 
-Validated on 2026-09-09 (Europe/Berlin) against an isolated Jellyfin 12.0 container on zen,
-using the Real-Debrid test account. Production Jellyfin, Plex, zurg and provider torrents were
-not modified. Jellyfin 12.0 was checked against the [official release](https://github.com/jellyfin/jellyfin/releases/tag/v12.0).
+Validated on 2026-09-09 (Europe/Berlin) against Jellyfin 12.0 on **zen**, using the workspace test
+accounts. Production Plex, zurg and provider libraries were not modified, and no provider content was
+deleted.
 
 ## Defects reproduced before fixing
 
-- An anonymous HEAD request to an unsigned media URL returned a working CDN redirect.
-- A real 32-torrent sample imported 799 entries. Reducing the configured limit to one torrent
-  removed 798 entries even though the other torrents still existed in the account.
-- Seven added regression cases failed: unsigned access, invalid ranges, an upstream ignoring
-  ranges, split/encrypted RAR4 members, and names extending beyond their declared archive header.
-- A player cancelling reads during probing/seeking invalidated usable links and triggered fresh
-  provider resolutions. An archive seek/decode run failed before cancellation handling was corrected.
+- An anonymous request to a playback URL, with no signature and no Jellyfin session, was served.
+  Measured live on zen against the 1.0.0.0 build: a `302` to the Real-Debrid CDN.
+- Absolute-numbered anime merged into one film. TMDb matches "One Piece - 1004" to the series and
+  writes a ProductionYear onto it, after which every episode shared a title and a year and the
+  version merge folded them together. Measured on the TorBox account: 155 One Piece episodes in one
+  item with 154 alternate versions, plus 38 Detective Conan and 12 Meitantei Precure!.
+- The 1.0.1.0 release-hardening work in `dfd9f5c` is validated separately in this file's
+  history; this run revalidates it on top of the version-merge fix.
 
 ## Passing checks
 
 | Area | Evidence |
 |---|---|
 | Build | .NET 10 Release build: zero warnings and zero errors. |
-| Automated tests | 74 passed, zero failed, zero skipped. Includes interrupted/limited sync, incomplete/overlapping pagination, configuration/signature validation, byte ranges, cancellation and RAR4/RAR5 safety. |
-| Package | ZIP contains only the plugin DLL and `meta.json`; version, GUID, ABI, content and SHA-256 verified. Invalid version input is rejected before building. |
-| Installation | Installed the ZIP into an isolated server. Jellyfin reported version 1.0.1.0 Active, and the installed DLL matched the final build byte for byte. |
-| Configuration UI | Loaded settings, saved an API interval, reloaded and confirmed persistence. Invalid duplicate library names returned HTTP 400 and a visible error message. Direct redirects defaulted off. |
-| Library safety | Final 32-torrent sample: 799 entries. Reducing the limit retained all entries. Repeat sync, a full Jellyfin library scan and a server restart retained all 799 item IDs. |
-| URL migration | Changed the server URL to a separate reverse proxy under `/jellyfin`, synced, verified all item IDs and signed archive playback, then restored the original URL and verified IDs again. |
-| Streaming | Real plain MKV and stored-RAR media passed signed HEAD, initial/middle/suffix range and Matroska signature checks. Unsigned/tampered URLs returned 401; unsatisfiable ranges returned 416. |
-| Decoder | ffprobe detected video/audio from both real sources. ffmpeg decoded three seconds of audio/video from the archive after seeking to 120 seconds. |
-| Real player | Jellyfin Web played Tears of Steel, advanced playback and sought successfully. The task-owned player was stopped and active test playback sessions returned to zero. |
-| Restart | Final installed package retained configuration/signing key, item IDs and a manual metadata field lock after cold sync. Both plain and archive playback passed afterward. |
-| Release workflow | actionlint passed. Optional catalog generation produced matching version, ABI, ZIP URL and checksum in an isolated fixture. No public catalog was published. |
+| Automated tests | 79 passed, zero failed, zero skipped. |
+| Package | ZIP contains only `Jellyfin.Plugin.RdZurg.dll` and `meta.json`; version, GUID, ABI, content and SHA-256 verified by `scripts/verify-package.py`. |
+| Installation | Installed the ZIP contents into `/var/lib/jellyfin/plugins/rd-zurg_1.0.2.0` on zen. Jellyfin reported `RD zurg 1.0.2.0` Active after restart, with no `[ERR]` or `[FTL]`. |
+| Signed playback | A library item's own URL answered `206` for an initial range and for a suffix range (`bytes=-4096`), and the bytes began with a real container signature (`ftypisom`, a real MP4). |
+| Unsigned playback | The same URL with the signature stripped answered `401`. A 64-character forged signature answered `401`. The exact URL that served media from the 1.0.0.0 build answered `401`. |
+| Range handling | An unsatisfiable range (`bytes=999999999999-`) answered `416`. |
+| Library identity | 3,274 episode IDs and every pre-existing movie ID survived the upgrade and resync; 10 movie IDs left `/Items` because they became alternate versions, and each still resolves through `GET /Items/{id}`. |
+| Sync safety | A resync removed nothing: "3364 torrents seen ... removed 0 gone from the account". |
+| Version merging | After the fix a full resync folded **0** new alternate versions on the TorBox account, against 202 on the same account before it. |
+| Configuration | Settings load, save and reload through the dashboard; the plugin validates them on save and rejects unusable server URLs, colliding library names and out-of-range limits. |
 
-The locally validated release ZIP has SHA-256:
+The validated release ZIP has SHA-256:
 
 ```text
-f402904059f7fc8ad9875fd84446f86de17278f98837843e2a13bee36ca5546c
+d61eba825ecfd1caaca0f7b3f0960e08f7c8fb11b72298cdcd62f5f59a77d04f
 ```
 
-CI repackages the source with its build timestamp, so its ZIP checksum can differ. Always use the
+CI repackages the source with its own build timestamp, so its ZIP checksum can differ. Always use the
 checksum distributed alongside the exact ZIP being installed.
 
 ## Release scope
 
-Ready for private ZIP distribution on Jellyfin 12.0 within the documented naming and archive scope.
-The repository remains private. Public catalog installation and automatic updates require a separately
-chosen, reachable artifact host; they were not represented as tested public distribution. See
-[release operations](RELEASING.md) and [the README](../README.md) for configuration, migration,
-bearer-URL handling and limitations. No version tag or public release was created by this review.
+Ready for private ZIP distribution on Jellyfin 12.0. The repository remains private; no version tag,
+GitHub release or public catalog was created by this validation. Catalog installation and automatic
+updates need a separately chosen artifact host, which was not represented as tested.
+
+**Not covered by this run.** A real player was not driven end to end; playback was exercised with
+range requests against the plugin's own endpoint rather than through a Jellyfin client session.
+Merges written by an earlier build are not undone by the upgrade - see
+[release operations](RELEASING.md).

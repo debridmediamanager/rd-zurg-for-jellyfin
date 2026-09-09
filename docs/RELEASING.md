@@ -42,6 +42,10 @@ failure responses in the automated tests and manipulate only task-owned Jellyfin
 
 ## Upgrade and rollback
 
+Merges already written by an earlier build are not undone: the sync deliberately never unmerges,
+so a library that folded absolute-numbered anime into one film keeps those versions until the
+affected items are removed and rebuilt by a fresh sync. New merges stop immediately on upgrade.
+
 Back up Jellyfin data and plugin configuration before upgrading. Install the new version alongside
 the old version while Jellyfin is stopped; Jellyfin selects the newer compatible plugin. Restart,
 confirm the loaded version, and run the plugin sync to migrate paths. Keep the backup until playback
