@@ -20,6 +20,17 @@ repositories. Rebuilding the ZIP changes its checksum; regenerate the manifest w
 The generated manifest contains only the current version; retain earlier entries when maintaining
 a catalog across Jellyfin ABI versions. No public hosting or repository-visibility change is implicit.
 
+## Plugin identity in the dashboard
+
+The packaged `thumb.png` is what Jellyfin shows on the plugin's page: `meta.json` names it as
+`imagePath`, the server reports `HasImage`, and it is served from
+`/Plugins/{guid}/{version}/Image` without needing a catalog.
+
+**Developer** and **Repository** are different. Jellyfin reads those only from a plugin repository's
+manifest, so a manually installed plugin shows "Unknown" for both and a warning that the plugin
+details could not be read from the repository. That is cosmetic and the plugin works, but the only
+way to fill those fields is to publish a catalog and register its URL - see Distribution above.
+
 ## Before tagging a version
 
 1. Update the project `Version` and `CHANGELOG.md`. Run the Release test suite, `./build.sh` and

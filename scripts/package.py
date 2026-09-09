@@ -15,10 +15,12 @@ out = root / 'artifacts' / ('rd-zurg_' + version)
 out.mkdir(parents=True, exist_ok=True)
 assembly = 'Jellyfin.Plugin.RdZurg.dll'
 shutil.copy2(root / 'src/Jellyfin.Plugin.RdZurg/bin/Release/net10.0' / assembly, out / assembly)
+shutil.copy2(root / 'assets/thumb.png', out / 'thumb.png')
 metadata = {
     'category': 'General',
     'changelog': 'Signed playback URLs, safe sync cleanup, bounded archive streaming and configuration validation.',
     'description': 'Your Real-Debrid library in Jellyfin, without a mount.',
+    'imagePath': 'thumb.png',
     'guid': '4d0b1a37-1f1c-4a3e-9f5c-2e6a7b8c9d01',
     'name': 'RD zurg',
     'overview': 'Serves a Real-Debrid account as a Jellyfin library',
@@ -32,7 +34,7 @@ metadata = {
 (out / 'meta.json').write_text(json.dumps(metadata, indent=2) + '\n')
 archive = root / 'artifacts' / ('rd-zurg_' + version + '.zip')
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
-    for name in (assembly, 'meta.json'):
+    for name in (assembly, 'meta.json', 'thumb.png'):
         bundle.write(out / name, name)
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
 archive.with_suffix('.zip.sha256').write_text(digest + '  ' + archive.name + '\n')

@@ -21,6 +21,6 @@ fi
 if [[ $# -eq 1 ]]; then
   DEST="$1/plugins/rd-zurg_$VERSION"
   mkdir -p "$DEST"
-  cp "$ROOT/artifacts/rd-zurg_$VERSION/Jellyfin.Plugin.RdZurg.dll" "$ROOT/artifacts/rd-zurg_$VERSION/meta.json" "$DEST/"
+  cp "$ROOT/artifacts/rd-zurg_$VERSION/Jellyfin.Plugin.RdZurg.dll" "$ROOT/artifacts/rd-zurg_$VERSION/meta.json" "$ROOT/artifacts/rd-zurg_$VERSION/thumb.png" "$DEST/"
   echo "Installed into $DEST. Restart Jellyfin, then run the RD zurg sync."
 fi

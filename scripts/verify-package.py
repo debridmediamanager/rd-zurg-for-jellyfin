@@ -12,10 +12,12 @@ project = ET.parse(root / 'src/Jellyfin.Plugin.RdZurg/Jellyfin.Plugin.RdZurg.csp
 version = sys.argv[1] if len(sys.argv) > 1 else project.findtext('.//Version')
 archive = root / 'artifacts' / ('rd-zurg_' + version + '.zip')
 with zipfile.ZipFile(archive) as bundle:
-    assert sorted(bundle.namelist()) == ['Jellyfin.Plugin.RdZurg.dll', 'meta.json'], 'Unexpected packaged dependency or file'
+    assert sorted(bundle.namelist()) == ['Jellyfin.Plugin.RdZurg.dll', 'meta.json', 'thumb.png'], 'Unexpected packaged dependency or file'
     assert bundle.testzip() is None, 'Corrupt ZIP entry'
     metadata = json.loads(bundle.read('meta.json'))
     assert metadata['version'] == version
+    assert metadata['imagePath'] == 'thumb.png'
+    assert bundle.read('thumb.png')[:8] == b'\x89PNG\r\n\x1a\n', 'The plugin image is not a PNG'
     assert metadata['guid'] == '4d0b1a37-1f1c-4a3e-9f5c-2e6a7b8c9d01'
     abi = project.find('.//PackageReference[@Include="Jellyfin.Controller"]').get('Version') + '.0'
     assert metadata['targetAbi'] == abi
