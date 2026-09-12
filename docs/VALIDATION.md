@@ -1,52 +1,44 @@
-# Release validation: 1.0.2.0
+# Release validation: 1.0.3.0
 
-Validated on 2026-09-09 (Europe/Berlin) against Jellyfin 12.0 on **zen**, using the workspace test
-accounts. Production Plex, zurg and provider libraries were not modified, and no provider content was
-deleted.
+Validated on 2026-09-12 (UTC) against Jellyfin 12.0 on **zen**. The run used a second instance of
+zen's own Jellyfin 12.0 binary with separate data, config, cache and log directories on port 18099,
+holding a copy of the rig's database and only this plugin. Real-Debrid was read with the workspace
+test account; nothing was deleted from the account.
 
 ## Defects reproduced before fixing
 
-- An anonymous request to a playback URL, with no signature and no Jellyfin session, was served.
-  Measured live on zen against the 1.0.0.0 build: a `302` to the Real-Debrid CDN.
-- Absolute-numbered anime merged into one film. TMDb matches "One Piece - 1004" to the series and
-  writes a ProductionYear onto it, after which every episode shared a title and a year and the
-  version merge folded them together. Measured on the TorBox account: 155 One Piece episodes in one
-  item with 154 alternate versions, plus 38 Detective Conan and 12 Meitantei Precure!.
-- The 1.0.1.0 release-hardening work in `dfd9f5c` is validated separately in this file's
-  history; this run revalidates it on top of the version-merge fix.
+- Jellyfin 12 leaves an item with a PrimaryVersionId out of every query that does not set
+  IncludeOwnedItems (`BaseItemRepository.ApplyAccessFiltering`), so the sync never saw an alternate
+  version. On the rig only 25 of 623 versions were still named by their film and 19 of 191 films named
+  any; the merge pass had found each film alone and saved it with none. A 1.0.2.0 pass recognised
+  2,740 of 3,364 torrents and took 3m20s.
+- 327 films were held twice. 1.0.0.0 derived an item's id from its playback URL and 1.0.1.0 from the
+  link, and a pass that could not see the older item added the file again. The older copy stayed on
+  an unsigned URL: 5 of 5 probed answered `401` while its twin answered `206`. Each of 151 sampled
+  rows matched exactly one of the two ids, computed with Jellyfin's own item-id formula.
+- `AlternateVersionSyncTests` replays a fixture read from that library and from the account. Against
+  the 1.0.2.0 source all six replay tests fail; with this release they pass.
 
 ## Passing checks
 
 | Area | Evidence |
 |---|---|
 | Build | .NET 10 Release build: zero warnings and zero errors. |
-| Automated tests | 79 passed, zero failed, zero skipped. |
-| Package | ZIP contains only `Jellyfin.Plugin.RdZurg.dll` and `meta.json`; version, GUID, ABI, content and SHA-256 verified by `scripts/verify-package.py`. |
-| Installation | Installed the ZIP contents into `/var/lib/jellyfin/plugins/rd-zurg_1.0.2.0` on zen. Jellyfin reported `RD zurg 1.0.2.0` Active after restart, with no `[ERR]` or `[FTL]`. |
-| Signed playback | A library item's own URL answered `206` for an initial range and for a suffix range (`bytes=-4096`), and the bytes began with a real container signature (`ftypisom`, a real MP4). |
-| Unsigned playback | The same URL with the signature stripped answered `401`. A 64-character forged signature answered `401`. The exact URL that served media from the 1.0.0.0 build answered `401`. |
-| Range handling | An unsatisfiable range (`bytes=999999999999-`) answered `416`. |
-| Library identity | 3,274 episode IDs and every pre-existing movie ID survived the upgrade and resync; 10 movie IDs left `/Items` because they became alternate versions, and each still resolves through `GET /Items/{id}`. |
-| Sync safety | A resync removed nothing: "3364 torrents seen ... removed 0 gone from the account". |
-| Version merging | After the fix a full resync folded **0** new alternate versions on the TorBox account, against 202 on the same account before it. |
-| Configuration | Settings load, save and reload through the dashboard; the plugin validates them on save and rejects unusable server URLs, colliding library names and out-of-range limits. |
+| Automated tests | 86 passed, zero failed, zero skipped. |
+| Package | `scripts/verify-package.py` verified `rd-zurg_1.0.3.0.zip`. |
+| Installation | The isolated server loaded `RD zurg 1.0.3.0`. |
+| First sync | 3,047 of 3,364 torrents recognised. Removed 327 copies added twice by an earlier build and 0 items gone from the account; added nothing. 1,925 films and 3,274 episodes remain, the counts the rig's first full sync produced. |
+| Library state | 0 duplicate stream paths, 0 unsigned playback URLs, 0 items without their link id. 296 versions under 167 films, every film naming exactly the versions filed under it and no version naming any; 0 yearless releases filed as or with versions. |
+| Playback | Five versions: signed `206` starting with an EBML header, unsigned `401`, forged `401`. |
+| Second sync | Idempotent: 0 folded, 0 released, 0 removed, in 1m48s. |
 
-The validated release ZIP has SHA-256:
-
-```text
-d61eba825ecfd1caaca0f7b3f0960e08f7c8fb11b72298cdcd62f5f59a77d04f
-```
-
-CI repackages the source with its own build timestamp, so its ZIP checksum can differ. Always use the
-checksum distributed alongside the exact ZIP being installed.
+317 torrents are still listed on every pass, by design and unchanged by this release: 244 single-file
+torrents whose file the library already holds under another torrent, and 73 multi-file torrents
+holding files that never become items.
 
 ## Release scope
 
-Ready for private ZIP distribution on Jellyfin 12.0. The repository remains private; no version tag,
-GitHub release or public catalog was created by this validation. Catalog installation and automatic
-updates need a separately chosen artifact host, which was not represented as tested.
-
-**Not covered by this run.** A real player was not driven end to end; playback was exercised with
-range requests against the plugin's own endpoint rather than through a Jellyfin client session.
-Merges written by an earlier build are not undone by the upgrade - see
-[release operations](RELEASING.md).
+**Not covered by this run.** The rig had no torrent gone from the account, so deleting a film with
+linked versions was exercised only by the replay test, against a model of Jellyfin's
+`LibraryManager.DeleteItem`. A real player was not driven end to end; playback was exercised with range
+requests against the plugin's own endpoint.

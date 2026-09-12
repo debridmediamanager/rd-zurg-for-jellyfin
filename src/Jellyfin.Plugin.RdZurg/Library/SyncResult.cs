@@ -24,6 +24,12 @@ public sealed record SyncResult
     /// <summary>Gets how many releases were folded into another as an alternate version.</summary>
     public int VersionsMerged { get; init; }
 
+    /// <summary>Gets how many earlier merges were undone because the release may not be merged.</summary>
+    public int VersionsReleased { get; init; }
+
     /// <summary>Gets how many items were removed because their torrent is gone.</summary>
     public int ItemsRemoved { get; init; }
+
+    /// <summary>Gets how many items were removed for repeating a file another item already holds.</summary>
+    public int LeftoversRemoved { get; init; }
 }

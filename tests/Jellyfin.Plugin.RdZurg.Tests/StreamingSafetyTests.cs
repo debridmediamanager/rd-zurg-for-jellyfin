@@ -22,6 +22,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.RdZurg.Tests;
 
+[Collection(PluginInstanceCollection.Name)]
 public class StreamingSafetyTests
 {
     private const string Key = "ZH4JR4PYJ6S2C";

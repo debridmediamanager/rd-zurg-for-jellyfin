@@ -101,7 +101,26 @@ public sealed class LibrarySync
         var torrents = await client.GetTorrentsAsync(config.MaxTorrents, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Real-Debrid reported {Count} torrents", torrents.Count);
 
-        var known = ExistingItemsByLink(movieFolder, showFolder);
+        var leftovers = new List<BaseItem>();
+        var known = ExistingItemsByLink(movieFolder, showFolder, leftovers);
+        var leftoversRemoved = 0;
+
+        if (leftovers.Count > 0)
+        {
+            foreach (var leftover in leftovers)
+            {
+                _logger.LogInformation(
+                    "Removing {Name} ({Id}): an earlier build added the same file under another id",
+                    leftover.Name,
+                    leftover.Id);
+                await DeleteOwnedItemAsync(leftover, cancellationToken).ConfigureAwait(false);
+                leftoversRemoved++;
+            }
+
+            // Deleting an item rewrites the versions filed around it, so what was read before is stale.
+            known = ExistingItemsByLink(movieFolder, showFolder, new List<BaseItem>());
+        }
+
         // Build liveness from the complete listing, before any detail requests can fail.
         // Pending or temporarily errored torrents also retain their existing links.
         var liveKeys = new HashSet<string>(torrents.SelectMany(t => t.Links).Select(RealDebridClient.LinkKey), StringComparer.Ordinal);
@@ -232,12 +251,12 @@ public sealed class LibrarySync
 
         // A limited listing cannot prove that an older torrent was deleted.
         var removed = config.RemoveVanishedItems && config.MaxTorrents == 0
-            ? RemoveVanished(known, liveKeys)
+            ? await RemoveVanishedAsync(known, liveKeys, cancellationToken).ConfigureAwait(false)
             : 0;
 
-        var versionsMerged = config.MergeDuplicateVersions
+        var (versionsMerged, versionsReleased) = config.MergeDuplicateVersions
             ? await MergeVersionsAsync(movieFolder, cancellationToken).ConfigureAwait(false)
-            : 0;
+            : (0, 0);
 
         progress.Report(95);
         QueueMetadata(newMovies, seriesByName.Values);
@@ -252,7 +271,9 @@ public sealed class LibrarySync
             SeriesTouched = seriesByName.Count,
             DuplicatesSkipped = duplicatesSkipped,
             VersionsMerged = versionsMerged,
-            ItemsRemoved = removed
+            VersionsReleased = versionsReleased,
+            ItemsRemoved = removed,
+            LeftoversRemoved = leftoversRemoved
         };
     }
 
@@ -296,24 +317,47 @@ public sealed class LibrarySync
     private static string ReleaseFingerprint(string fileName, long bytes)
         => string.Format(CultureInfo.InvariantCulture, "{0}|{1}", fileName, bytes);
 
-    /// <summary>Indexes what the library already holds by the link each item came from.</summary>
-    private Dictionary<string, BaseItem> ExistingItemsByLink(Folder movieFolder, Folder showFolder)
-    {
-        // ProviderIds has to be asked for by name. BaseItemRepository.ApplyNavigations only joins
-        // the provider table when the query's DtoOptions contain that field, so a query without it
-        // returns every item with an empty ProviderIds and the whole library reads as unknown.
-        // Settings also loads metadata field locks, which must survive subsequent item updates.
-        var query = new InternalItemsQuery
+    /// <summary>Builds the query every pass over this plugin's own items goes through.</summary>
+    /// <param name="kinds">The item kinds to return.</param>
+    /// <param name="topParentIds">The library folders to look under.</param>
+    /// <returns>The query.</returns>
+    /// <remarks>
+    /// <para>
+    /// ProviderIds has to be asked for by name. BaseItemRepository.ApplyNavigations only joins the
+    /// provider table when the query's DtoOptions contain that field, so a query without it returns
+    /// every item with an empty ProviderIds and the whole library reads as unknown. Settings also loads
+    /// metadata field locks, which must survive subsequent item updates.
+    /// </para>
+    /// <para>
+    /// IncludeOwnedItems is what makes alternate versions visible. Without it ApplyAccessFiltering
+    /// drops every item with a PrimaryVersionId, and a version nothing can see is never given a new
+    /// playback URL, never removed when its torrent goes, and re-examined against Real-Debrid on every
+    /// pass. The merge pass then found each film alone and saved it with no versions: on a real library
+    /// 19 of 191 films still named any of their 623 alternates. Walking a film's links to its versions
+    /// cannot recover that, because the links are what was lost.
+    /// </para>
+    /// </remarks>
+    public static InternalItemsQuery OwnedItemsQuery(BaseItemKind[] kinds, params Guid[] topParentIds)
+        => new()
         {
-            IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Episode },
-            TopParentIds = new[] { movieFolder.Id, showFolder.Id },
+            IncludeItemTypes = kinds,
+            TopParentIds = topParentIds,
             Recursive = true,
+            IncludeOwnedItems = true,
             DtoOptions = new MediaBrowser.Controller.Dto.DtoOptions(false)
             {
                 Fields = new[] { ItemFields.ProviderIds, ItemFields.Settings }
             }
         };
 
+    /// <summary>Indexes what the library already holds by the link each item came from.</summary>
+    /// <param name="movieFolder">The movie library folder.</param>
+    /// <param name="showFolder">The show library folder.</param>
+    /// <param name="leftovers">Receives items repeating a link that another item holds under its proper id.</param>
+    /// <returns>The items, by link.</returns>
+    private Dictionary<string, BaseItem> ExistingItemsByLink(Folder movieFolder, Folder showFolder, List<BaseItem> leftovers)
+    {
+        var query = OwnedItemsQuery(new[] { BaseItemKind.Movie, BaseItemKind.Episode }, movieFolder.Id, showFolder.Id);
         var map = new Dictionary<string, BaseItem>(StringComparer.Ordinal);
 
         foreach (var item in _libraryManager.GetItemList(query))
@@ -335,14 +379,52 @@ public sealed class LibrarySync
                     }
                 }
             }
-            if (!string.IsNullOrEmpty(key))
+            if (string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
+
+            if (!map.TryGetValue(key, out var held))
             {
                 map[key] = item;
+                continue;
+            }
+
+            // Two items for one link. 1.0.0.0 derived an item's id from its playback URL and every
+            // later build derives it from the link. A film 1.0.0.0 filed as an alternate version was
+            // invisible to the next pass, which added the file again under the new id, so an upgraded
+            // library holds both - measured on one, 327 films twice, the older copy still on its
+            // unsigned URL. Only the item under the id this build gives the link is kept.
+            if (item.Id == ItemIdFor(item, key))
+            {
+                leftovers.Add(held);
+                map[key] = item;
+            }
+            else if (held.Id == ItemIdFor(held, key))
+            {
+                leftovers.Add(item);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "{First} and {Second} both claim link {Key} and neither has the id this build gives it, so both are kept",
+                    held.Id,
+                    item.Id,
+                    key);
             }
         }
 
         return map;
     }
+
+    private Guid ItemIdFor(BaseItem item, string key)
+        => item is Episode
+            ? _libraryManager.GetNewItemId(EpisodeIdKey(key), typeof(Episode))
+            : _libraryManager.GetNewItemId(MovieIdKey(key), typeof(Movie));
+
+    private static string MovieIdKey(string key) => "rd-zurg-movie:" + key;
+
+    private static string EpisodeIdKey(string key) => "rd-zurg-episode:" + key;
 
     private Movie? BuildMovie(
         LibraryBuilder builder,
@@ -361,7 +443,7 @@ public sealed class LibrarySync
         }
 
         var url = LinkResolver.BuildUrl(config.PublicBaseUrl, key, filePath);
-        var id = builder.IdFor("rd-zurg-movie:" + key, typeof(Movie));
+        var id = builder.IdFor(MovieIdKey(key), typeof(Movie));
 
         if (_libraryManager.GetItemById(id) is not null)
         {
@@ -430,7 +512,7 @@ public sealed class LibrarySync
 
         var episodeNumber = parsed.EpisodeNumber!.Value;
         var url = LinkResolver.BuildUrl(config.PublicBaseUrl, key, filePath);
-        var id = builder.IdFor("rd-zurg-episode:" + key, typeof(Episode));
+        var id = builder.IdFor(EpisodeIdKey(key), typeof(Episode));
 
         if (_libraryManager.GetItemById(id) is not null)
         {
@@ -584,26 +666,33 @@ public sealed class LibrarySync
     /// <summary>
     /// Folds releases of one film into a single item with the rest behind it as versions.
     /// </summary>
+    /// <param name="movieFolder">The movie library folder.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many releases were folded in, and how many earlier merges were let go of.</returns>
     /// <remarks>
+    /// <para>
     /// This mirrors the Merge Versions button in the web UI. Different releases of a film are real
     /// alternatives worth keeping; what they are not is different films. Runs over the whole library
     /// rather than the new arrivals so a release added today joins the item created last week.
+    /// </para>
+    /// <para>
+    /// A film's versions are rebuilt from what groups with it on every pass, so a film whose links were
+    /// erased gets them back. A release that may not be merged at all is let go of if an earlier build
+    /// filed it as a version or gave it versions. That cannot flap: the grouping reads the release name
+    /// in the path this plugin wrote, and no metadata refresh touches it.
+    /// </para>
     /// </remarks>
-    private async Task<int> MergeVersionsAsync(Folder movieFolder, CancellationToken cancellationToken)
+    private async Task<(int Merged, int Released)> MergeVersionsAsync(Folder movieFolder, CancellationToken cancellationToken)
     {
-        var query = new InternalItemsQuery
-        {
-            IncludeItemTypes = new[] { BaseItemKind.Movie },
-            TopParentIds = new[] { movieFolder.Id },
-            Recursive = true,
-            DtoOptions = new MediaBrowser.Controller.Dto.DtoOptions(false) { Fields = new[] { ItemFields.ProviderIds, ItemFields.Settings } }
-        };
-
         var merged = 0;
+        var released = 0;
 
         // Grouped on what this plugin parsed out of the release name, never on the item's current
         // Name and ProductionYear. A metadata provider rewrites those - see MayMerge.
-        var movies = _libraryManager.GetItemList(query).OfType<Movie>().ToList();
+        var movies = _libraryManager.GetItemList(OwnedItemsQuery(new[] { BaseItemKind.Movie }, movieFolder.Id))
+            .OfType<Movie>()
+            .Where(m => !string.IsNullOrEmpty(m.GetProviderId(LinkProviderId)))
+            .ToList();
         var identities = new Dictionary<Guid, (string? Name, int? Year)>();
 
         foreach (var movie in movies)
@@ -613,15 +702,13 @@ public sealed class LibrarySync
                 : (movie.Name, movie.ProductionYear);
         }
 
-        var groups = movies
-            .Where(m => MayMerge(identities[m.Id].Name, identities[m.Id].Year) && !string.IsNullOrEmpty(m.GetProviderId(LinkProviderId)))
-            .GroupBy(
-                m => string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}|{1}",
-                    identities[m.Id].Name,
-                    identities[m.Id].Year?.ToString(CultureInfo.InvariantCulture) ?? "?"),
-                StringComparer.OrdinalIgnoreCase);
+        // A release that may not be merged is a group of one. The two key shapes cannot collide: only
+        // the mergeable one contains a separator.
+        var groups = movies.GroupBy(
+            m => MayMerge(identities[m.Id].Name, identities[m.Id].Year)
+                ? string.Format(CultureInfo.InvariantCulture, "{0}|{1}", identities[m.Id].Name, identities[m.Id].Year)
+                : m.Id.ToString("N", CultureInfo.InvariantCulture),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in groups)
         {
@@ -630,14 +717,36 @@ public sealed class LibrarySync
             // The biggest file keeps the poster: it is the version most likely to be the best source.
             var ordered = group.OrderByDescending(m => m.Size ?? 0).ThenBy(m => m.Id).ToList();
             var primary = ordered[0];
-            if (ordered.Count == 1 && !primary.PrimaryVersionId.HasValue && primary.LinkedAlternateVersions.Length == 0) continue;
-            var alternates = ordered.Skip(1).Where(m => m.PrimaryVersionId != primary.Id).ToList();
 
-            foreach (var alternate in alternates)
+            foreach (var alternate in ordered.Skip(1))
             {
+                // A version names no versions of its own; one that does was filed as a film until now.
+                if (alternate.PrimaryVersionId == primary.Id && alternate.LinkedAlternateVersions.Length == 0)
+                {
+                    continue;
+                }
+
+                if (alternate.PrimaryVersionId != primary.Id)
+                {
+                    merged++;
+                }
+
                 alternate.SetPrimaryVersionId(primary.Id);
+                alternate.LinkedAlternateVersions = Array.Empty<LinkedChild>();
                 await alternate.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
-                merged++;
+            }
+
+            var versions = ordered.Skip(1).Select(a => a.Id).ToHashSet();
+            var linked = primary.LinkedAlternateVersions.Where(l => l.ItemId.HasValue).Select(l => l.ItemId!.Value).ToList();
+
+            if (!primary.PrimaryVersionId.HasValue && linked.Count == versions.Count && versions.SetEquals(linked))
+            {
+                continue;
+            }
+
+            if (ordered.Count == 1)
+            {
+                released++;
             }
 
             primary.LinkedAlternateVersions = ordered
@@ -649,11 +758,11 @@ public sealed class LibrarySync
             await primary.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
         }
 
-        return merged;
+        return (merged, released);
     }
 
     /// <summary>Deletes items whose link is no longer in the account.</summary>
-    private int RemoveVanished(Dictionary<string, BaseItem> known, HashSet<string> liveKeys)
+    private async Task<int> RemoveVanishedAsync(Dictionary<string, BaseItem> known, HashSet<string> liveKeys, CancellationToken cancellationToken)
     {
         var removed = 0;
 
@@ -665,17 +774,42 @@ public sealed class LibrarySync
             }
 
             _logger.LogInformation("Removing {Name}: its torrent is gone from Real-Debrid", item.Name);
-
-            _libraryManager.DeleteItem(
-                item,
-                new DeleteOptions { DeleteFileLocation = false },
-                item.GetParent(),
-                false);
-
+            await DeleteOwnedItemAsync(item, cancellationToken).ConfigureAwait(false);
             removed++;
         }
 
         return removed;
+    }
+
+    /// <summary>Deletes one of this plugin's items without taking the versions filed under it along.</summary>
+    /// <remarks>
+    /// Jellyfin 12's LibraryManager.DeleteItem deletes a film's linked versions with it whenever their
+    /// path is not a file on disk, and every path here is a URL. A release still in the account would
+    /// go because the film it was filed under did. So the versions are let go of first, and the merge
+    /// pass files them under a film again.
+    /// </remarks>
+    private async Task DeleteOwnedItemAsync(BaseItem item, CancellationToken cancellationToken)
+    {
+        if (item is Video film && !film.PrimaryVersionId.HasValue && film.LinkedAlternateVersions.Length > 0)
+        {
+            foreach (var link in film.LinkedAlternateVersions)
+            {
+                if (link.ItemId is { } id && _libraryManager.GetItemById(id) is Video version && version.PrimaryVersionId == film.Id)
+                {
+                    version.SetPrimaryVersionId(null);
+                    await version.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            film.LinkedAlternateVersions = Array.Empty<LinkedChild>();
+            await film.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+        }
+
+        _libraryManager.DeleteItem(
+            item,
+            new DeleteOptions { DeleteFileLocation = false },
+            item.GetParent(),
+            false);
     }
 
     private void QueueMetadata(IEnumerable<BaseItem> movies, IEnumerable<Series> series)

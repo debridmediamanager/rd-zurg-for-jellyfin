@@ -23,6 +23,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.RdZurg.Tests;
 
+[Collection(PluginInstanceCollection.Name)]
 public class LibrarySyncSafetyTests
 {
     [Fact]

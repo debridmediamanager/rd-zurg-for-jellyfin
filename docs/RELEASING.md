@@ -74,9 +74,10 @@ failure responses in the automated tests and manipulate only task-owned Jellyfin
 
 ## Upgrade and rollback
 
-Merges already written by an earlier build are not undone: the sync deliberately never unmerges,
-so a library that folded absolute-numbered anime into one film keeps those versions until the
-affected items are removed and rebuilt by a fresh sync. New merges stop immediately on upgrade.
+From 1.0.3.0 the sync rebuilds every film's versions on each pass from the release names in the
+paths it wrote. A merge an earlier build made that the current rules refuse - absolute-numbered anime
+folded into one film, say - is let go of on the first sync after upgrading, and a file 1.0.0.0 added
+twice loses its older copy. Builds before 1.0.3.0 never undid a merge.
 
 Back up Jellyfin data and plugin configuration before upgrading. Install the new version alongside
 the old version while Jellyfin is stopped; Jellyfin selects the newer compatible plugin. Restart,

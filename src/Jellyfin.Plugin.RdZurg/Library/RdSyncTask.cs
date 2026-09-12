@@ -81,7 +81,8 @@ public class RdSyncTask : IScheduledTask
         _logger.LogInformation(
             "Sync finished. {Seen} torrents seen, {Known} already in the library. "
             + "Added {Movies} movies and {Episodes} episodes across {Series} series. "
-            + "Skipped {Duplicates} byte-identical re-adds, folded {Merged} in as alternate versions, removed {Removed} gone from the account.",
+            + "Skipped {Duplicates} byte-identical re-adds, folded {Merged} in as alternate versions, released {Released} that may not be merged, "
+            + "removed {Removed} gone from the account and {Leftovers} added twice by an earlier build.",
             result.TorrentsSeen,
             result.TorrentsAlreadyKnown,
             result.MoviesAdded,
@@ -89,6 +90,8 @@ public class RdSyncTask : IScheduledTask
             result.SeriesTouched,
             result.DuplicatesSkipped,
             result.VersionsMerged,
-            result.ItemsRemoved);
+            result.VersionsReleased,
+            result.ItemsRemoved,
+            result.LeftoversRemoved);
     }
 }
