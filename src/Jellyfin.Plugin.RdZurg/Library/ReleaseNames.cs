@@ -25,6 +25,9 @@ public sealed class ReleaseNames
 
     private readonly EpisodeResolver _episodes = new(CreateNamingOptions());
 
+    // Jellyfin's stock options, used only to recognise what an earlier build filed.
+    private readonly EpisodeResolver _stockEpisodes = new(new NamingOptions());
+
     /// <summary>Reports whether a path looks like a video file worth publishing.</summary>
     /// <param name="path">A path from a torrent's file list.</param>
     /// <returns><c>true</c> when the extension is one of the video extensions.</returns>
@@ -70,13 +73,7 @@ public sealed class ReleaseNames
         ArgumentNullException.ThrowIfNull(torrentName);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        var synthesized = string.Format(
-            CultureInfo.InvariantCulture,
-            "/{0}/{1}",
-            torrentName.Replace('/', '_'),
-            Path.GetFileName(filePath));
-
-        var parsed = _episodes.Resolve(synthesized, false, isOptimistic: false);
+        var parsed = _episodes.Resolve(Synthesize(torrentName, filePath), false, isOptimistic: false);
 
         if (parsed?.SeasonNumber is null || parsed.EpisodeNumber is null || string.IsNullOrWhiteSpace(parsed.SeriesName))
         {
@@ -84,6 +81,38 @@ public sealed class ReleaseNames
         }
 
         return parsed;
+    }
+
+    /// <summary>
+    /// Reports whether an episode an earlier build filed is a file this parser no longer reads as one.
+    /// </summary>
+    /// <param name="torrentName">The release name the file was parsed with.</param>
+    /// <param name="filePath">The file's path or name.</param>
+    /// <param name="season">The season the item was filed under.</param>
+    /// <param name="episode">The episode number the item was filed under.</param>
+    /// <returns>
+    /// <c>true</c> only when Jellyfin's stock expressions read exactly this season and episode from these
+    /// names and this parser reads no episode at all.
+    /// </returns>
+    /// <remarks>
+    /// Reproducing the item's own numbers is what makes acting on the answer safe. It proves the item came
+    /// from these names through the expressions this parser dropped, so an episode read some other way is
+    /// never touched, and a file let go of here cannot be read back as the same episode by the next pass.
+    /// </remarks>
+    public bool IsMisreadEpisode(string torrentName, string filePath, int? season, int? episode)
+    {
+        ArgumentNullException.ThrowIfNull(torrentName);
+        ArgumentNullException.ThrowIfNull(filePath);
+
+        if (season is null || episode is null || ParseEpisode(torrentName, filePath) is not null)
+        {
+            return false;
+        }
+
+        var stock = _stockEpisodes.Resolve(Synthesize(torrentName, filePath), false, isOptimistic: false);
+        return stock?.SeasonNumber == season
+            && stock.EpisodeNumber == episode
+            && !string.IsNullOrWhiteSpace(stock.SeriesName);
     }
 
     /// <summary>
@@ -136,6 +165,13 @@ public sealed class ReleaseNames
             DateTimeFormats = expression.DateTimeFormats
         };
     }
+
+    private static string Synthesize(string torrentName, string filePath)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "/{0}/{1}",
+            torrentName.Replace('/', '_'),
+            Path.GetFileName(filePath));
 
     /// <summary>Turns a dotted release name into something a metadata provider can search for.</summary>
     /// <param name="value">A release name or series name.</param>

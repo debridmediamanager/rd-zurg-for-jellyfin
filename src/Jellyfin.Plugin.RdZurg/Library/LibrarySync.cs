@@ -121,6 +121,8 @@ public sealed class LibrarySync
             known = ExistingItemsByLink(movieFolder, showFolder, new List<BaseItem>());
         }
 
+        var episodesRefiled = await RefileMisreadEpisodesAsync(torrents, known, cancellationToken).ConfigureAwait(false);
+
         // Build liveness from the complete listing, before any detail requests can fail.
         // Pending or temporarily errored torrents also retain their existing links.
         var liveKeys = new HashSet<string>(torrents.SelectMany(t => t.Links).Select(RealDebridClient.LinkKey), StringComparer.Ordinal);
@@ -273,7 +275,8 @@ public sealed class LibrarySync
             VersionsMerged = versionsMerged,
             VersionsReleased = versionsReleased,
             ItemsRemoved = removed,
-            LeftoversRemoved = leftoversRemoved
+            LeftoversRemoved = leftoversRemoved,
+            EpisodesRefiled = episodesRefiled
         };
     }
 
@@ -780,6 +783,98 @@ public sealed class LibrarySync
 
         return removed;
     }
+
+    /// <summary>Lets go of films an earlier build filed as episodes, so this pass adds them as films.</summary>
+    /// <param name="torrents">The account listing.</param>
+    /// <param name="known">The library's items by link, from which refiled items are removed.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many episodes were let go of.</returns>
+    /// <remarks>
+    /// <para>
+    /// Builds before 1.0.4.0 read a tag such as <c>AC3-2.0</c> or a pack's <c>1999-2021</c> as a season and
+    /// episode. A pass never reads a torrent whose links are all known again, so without this those films
+    /// would stay one-episode shows for good.
+    /// </para>
+    /// <para>
+    /// Only a torrent whose links hold exactly one item is refiled. A torrent without episodes publishes
+    /// its biggest video as a film, so refiling a pack of films would leave one where the library had
+    /// several. Such a pack keeps its episodes.
+    /// </para>
+    /// <para>
+    /// This runs before the pass seeds the releases it has seen. Run later, the film would be dropped as a
+    /// byte-identical copy of the episode it replaces.
+    /// </para>
+    /// </remarks>
+    private async Task<int> RefileMisreadEpisodesAsync(IEnumerable<RdTorrent> torrents, Dictionary<string, BaseItem> known, CancellationToken cancellationToken)
+    {
+        var refiled = 0;
+
+        foreach (var torrent in torrents)
+        {
+            if (!string.Equals(torrent.Status, "downloaded", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var held = torrent.Links
+                .Select(RealDebridClient.LinkKey)
+                .Distinct(StringComparer.Ordinal)
+                .Where(known.ContainsKey)
+                .ToList();
+
+            if (held.Count != 1 || known[held[0]] is not Episode episode || !Uri.TryCreate(episode.Path, UriKind.Absolute, out var url))
+            {
+                continue;
+            }
+
+            var fileName = Uri.UnescapeDataString(Path.GetFileName(url.AbsolutePath));
+            if (!_names.IsMisreadEpisode(torrent.Filename, fileName, episode.ParentIndexNumber, episode.IndexNumber))
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "Refiling {Release} as a film: an earlier build filed it as {Series} season {Season} episode {Episode}",
+                torrent.Filename,
+                episode.SeriesName,
+                episode.ParentIndexNumber,
+                episode.IndexNumber);
+
+            var seasonId = episode.SeasonId;
+            var seriesId = episode.SeriesId;
+            await DeleteOwnedItemAsync(episode, cancellationToken).ConfigureAwait(false);
+            known.Remove(held[0]);
+            RemoveEmptyShowFolders(seasonId, seriesId);
+            refiled++;
+        }
+
+        return refiled;
+    }
+
+    /// <summary>Removes the season and series a refiled episode left with nothing in them.</summary>
+    /// <param name="seasonId">The season the episode was filed under.</param>
+    /// <param name="seriesId">The series the episode was filed under.</param>
+    private void RemoveEmptyShowFolders(Guid seasonId, Guid seriesId)
+    {
+        if (_libraryManager.GetItemById(seasonId) is Season season && !HasChildren(season.Id, BaseItemKind.Episode))
+        {
+            _libraryManager.DeleteItem(season, new DeleteOptions { DeleteFileLocation = false }, season.GetParent(), false);
+        }
+
+        if (_libraryManager.GetItemById(seriesId) is Series series && !HasChildren(series.Id, BaseItemKind.Season))
+        {
+            _libraryManager.DeleteItem(series, new DeleteOptions { DeleteFileLocation = false }, series.GetParent(), false);
+        }
+    }
+
+    private bool HasChildren(Guid parentId, BaseItemKind kind)
+        => _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            ParentId = parentId,
+            IncludeItemTypes = new[] { kind },
+            IncludeOwnedItems = true,
+            Limit = 1
+        }).Count > 0;
 
     /// <summary>Deletes one of this plugin's items without taking the versions filed under it along.</summary>
     /// <remarks>

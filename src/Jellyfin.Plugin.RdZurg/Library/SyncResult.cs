@@ -32,4 +32,7 @@ public sealed record SyncResult
 
     /// <summary>Gets how many items were removed for repeating a file another item already holds.</summary>
     public int LeftoversRemoved { get; init; }
+
+    /// <summary>Gets how many films an earlier build filed as episodes were let go of, to be added as films.</summary>
+    public int EpisodesRefiled { get; init; }
 }
