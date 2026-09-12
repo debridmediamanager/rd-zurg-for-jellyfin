@@ -79,6 +79,11 @@ paths it wrote. A merge an earlier build made that the current rules refuse - ab
 folded into one film, say - is let go of on the first sync after upgrading, and a file 1.0.0.0 added
 twice loses its older copy. Builds before 1.0.3.0 never undid a merge.
 
+From 1.0.5.0 the first sync after upgrading refiles a film an earlier build filed as a one-episode show,
+when that film is its torrent's only item: the episode, and the season and show it leaves empty, go, and
+the same pass adds the film. A pack of films filed as episodes keeps its episodes, because a torrent with
+no episodes publishes only its biggest file. Check the sync's log line for how many were refiled.
+
 Back up Jellyfin data and plugin configuration before upgrading. Install the new version alongside
 the old version while Jellyfin is stopped; Jellyfin selects the newer compatible plugin. Restart,
 confirm the loaded version, and run the plugin sync to migrate paths. Keep the backup until playback
