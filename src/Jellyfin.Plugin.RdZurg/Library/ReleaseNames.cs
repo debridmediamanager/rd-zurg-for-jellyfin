@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Emby.Naming.Common;
 using Emby.Naming.TV;
 
@@ -11,12 +12,18 @@ namespace Jellyfin.Plugin.RdZurg.Library;
 /// </summary>
 public sealed class ReleaseNames
 {
+    // Jellyfin's bare range expression, which is not anchored to anything.
+    private const string BareRange = "([0-9]+)-([0-9]+)";
+
+    // Refuses the digit after an audio channel decimal when a codec follows it, as in 5.1x265 or AAC2.0x264.
+    private const string NotChannelDecimal = @"(?!(?<=(?:^|[^0-9])[0-9][.,])[0-9][xX]26[4-6](?![0-9]))";
+
     private static readonly string[] _videoExtensions =
     {
         ".mkv", ".mp4", ".avi", ".m4v", ".ts", ".mov", ".wmv", ".mpg", ".mpeg", ".flv", ".webm"
     };
 
-    private readonly EpisodeResolver _episodes = new(new NamingOptions());
+    private readonly EpisodeResolver _episodes = new(CreateNamingOptions());
 
     /// <summary>Reports whether a path looks like a video file worth publishing.</summary>
     /// <param name="path">A path from a torrent's file list.</param>
@@ -77,6 +84,57 @@ public sealed class ReleaseNames
         }
 
         return parsed;
+    }
+
+    /// <summary>
+    /// Builds Jellyfin's naming options without the two episode shapes that read a film's own tags as a
+    /// season and episode.
+    /// </summary>
+    /// <returns>The options the episode resolver runs with.</returns>
+    /// <remarks>
+    /// <para>
+    /// The bare <c>([0-9]+)-([0-9]+)</c> expression matches anywhere in the folder or the file name, so
+    /// <c>AC3-2.0</c>, <c>RIFE.4.17-60fps</c>, <c>2026-1080p</c> and a collection's <c>1999-2021</c> each
+    /// become a season and an episode. It is dropped.
+    /// </para>
+    /// <para>
+    /// The <c>NxNN</c> expressions read <c>DTS.XLL.5.1x265</c> as season 1 episode 265. They are kept, but
+    /// refuse the digit after an audio channel decimal when <c>x264</c>, <c>x265</c> or <c>x266</c> follows,
+    /// so <c>2011.1x01</c>, <c>Blakes.7.1x01</c>, <c>MythBusters.2005x17</c> and <c>Formula.1.2024x27</c>
+    /// still read as episodes.
+    /// </para>
+    /// </remarks>
+    public static NamingOptions CreateNamingOptions()
+    {
+        var options = new NamingOptions();
+        options.EpisodeExpressions = options.EpisodeExpressions
+            .Where(e => !string.Equals(e.Expression, BareRange, StringComparison.Ordinal))
+            .Select(GuardChannelDecimals)
+            .ToArray();
+        return options;
+    }
+
+    private static EpisodeExpression GuardChannelDecimals(EpisodeExpression expression)
+    {
+        var guarded = expression.Expression
+            .Replace(@"[\\\/\._ \[\(-]([0-9]+)x", @"[\\\/\._ \[\(-]" + NotChannelDecimal + "([0-9]+)x", StringComparison.Ordinal)
+            .Replace(
+                @"([sS]?(?<seasonnumber>[0-9]{1,4})[xX](?<epnumber>[0-9]+))",
+                NotChannelDecimal + @"([sS]?(?<seasonnumber>[0-9]{1,4})[xX](?<epnumber>[0-9]+))",
+                StringComparison.Ordinal);
+
+        if (string.Equals(guarded, expression.Expression, StringComparison.Ordinal))
+        {
+            return expression;
+        }
+
+        return new EpisodeExpression(guarded, expression.IsByDate)
+        {
+            IsOptimistic = expression.IsOptimistic,
+            IsNamed = expression.IsNamed,
+            SupportsAbsoluteEpisodeNumbers = expression.SupportsAbsoluteEpisodeNumbers,
+            DateTimeFormats = expression.DateTimeFormats
+        };
     }
 
     /// <summary>Turns a dotted release name into something a metadata provider can search for.</summary>
