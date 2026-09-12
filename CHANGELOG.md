@@ -1,3 +1,7 @@
+# 1.0.5.0
+
+- Refile a film an earlier build filed as an episode. A sync never reads a torrent whose links are all in the library again, so a film that 1.0.4.0 and earlier read as a one-episode show stayed one. A torrent whose only item is such an episode is now let go of and added again as a film, and the season and show it leaves empty are removed. An item counts only when Jellyfin's stock expressions reproduce its exact season and episode from the release and file name and the current parser reads none, so a real episode is never touched and a refiled film cannot come back as an episode. A pack of films filed as episodes keeps its episodes, because a torrent without episodes publishes only its biggest file. Replayed on a real library: BTCC and The Odyssey became films, both Matrix packs and 163 real episodes stayed, and a second pass changed nothing.
+
 # 1.0.4.0
 
 - Stop reading a film's audio, frame-rate or resolution tag, or a collection's year range, as a season and episode. Jellyfin's bare `([0-9]+)-([0-9]+)` expression read `AC3-2.0`, `4.17-60fps`, `2026-1080p` and `1999-2021` as episodes, and its `NxNN` expressions read `5.1x265` as season 1 episode 265, so a film became a one-episode show. Replayed over 4.24 million release and file names from DMM's RD and AllDebrid availability, 11,541 files of films no longer read as episodes and no episode number changed. An item a sync already filed this way stays where it is.
