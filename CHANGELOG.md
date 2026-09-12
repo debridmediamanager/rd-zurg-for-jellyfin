@@ -1,3 +1,7 @@
+# 1.0.4.0
+
+- Stop reading a film's audio, frame-rate or resolution tag, or a collection's year range, as a season and episode. Jellyfin's bare `([0-9]+)-([0-9]+)` expression read `AC3-2.0`, `4.17-60fps`, `2026-1080p` and `1999-2021` as episodes, and its `NxNN` expressions read `5.1x265` as season 1 episode 265, so a film became a one-episode show. Replayed over 4.24 million release and file names from DMM's RD and AllDebrid availability, 11,541 files of films no longer read as episodes and no episode number changed. An item a sync already filed this way stays where it is.
+
 # 1.0.3.0
 
 - Reach alternate versions during sync. Jellyfin 12 leaves an item with a PrimaryVersionId out of every query that does not ask for owned items, so the sync never saw a film's other versions: it asked Real-Debrid about each of their torrents again on every pass, never refreshed their playback URLs, never removed them when their torrent went, and saved each film with no versions at all. Measured on a real library: 19 of 191 films still named any of their 623 versions, and a pass recognised 2,740 of 3,364 torrents in 3m20s. With this release it recognises 3,047 and a steady pass takes 1m48s.
