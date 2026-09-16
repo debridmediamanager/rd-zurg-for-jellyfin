@@ -15,8 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Self-hosted (`fun`), not `ubuntu-latest`: the org runs a $3 Actions budget with
+  # `prevent_further_usage`, and once it is spent every GitHub-hosted job is refused
+  # in ~3s with no logs. `actions/setup-dotnet` fetches the SDK into the runner's
+  # tool cache, so the host needs no system .NET.
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +57,7 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     permissions:
       contents: write
     steps:
