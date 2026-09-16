@@ -21,18 +21,19 @@ jobs:
   # tool cache, so the host needs no system .NET.
   build:
     runs-on: [self-hosted, Linux, X64]
-    # `setup-dotnet` installs to /usr/share/dotnet by default, which the runner
-    # account cannot create. Point it at the runner's own tool cache, which is
-    # writable and persists between runs, so the SDK downloads once rather than
-    # on every build.
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
     steps:
       - uses: actions/checkout@v4
 
+      # `setup-dotnet` installs to /usr/share/dotnet by default, which the runner
+      # account cannot create. The tool cache is writable and persists between
+      # runs, so the SDK downloads once rather than on every build. `runner.*` is
+      # not available in a job-level `env`, hence per step; the action puts the
+      # install dir on PATH, so the later dotnet steps need nothing.
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
 
       - name: Build
         run: dotnet build src/Jellyfin.Plugin.RdZurg -c Release
@@ -66,8 +67,6 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     permissions:
       contents: write
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
