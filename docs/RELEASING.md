@@ -84,6 +84,12 @@ when that film is its torrent's only item: the episode, and the season and show 
 the same pass adds the film. A pack of films filed as episodes keeps its episodes, because a torrent with
 no episodes publishes only its biggest file. Check the sync's log line for how many were refiled.
 
+From 1.0.6.0 the first sync after upgrading renames a film an earlier build filed under a year read out of its
+resolution, such as 1920 from `1920x1080`, when its name and year are still what that build wrote and no metadata
+provider has matched it. The item keeps its id, so watch state and versions stay, and its metadata is looked up
+again. Versions grouped under that year are regrouped by the same pass. Check the sync's log line for how many
+were corrected.
+
 Back up Jellyfin data and plugin configuration before upgrading. Install the new version alongside
 the old version while Jellyfin is stopped; Jellyfin selects the newer compatible plugin. Restart,
 confirm the loaded version, and run the plugin sync to migrate paths. Keep the backup until playback
