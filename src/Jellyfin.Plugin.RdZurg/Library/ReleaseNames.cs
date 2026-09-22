@@ -2,8 +2,10 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Emby.Naming.Common;
 using Emby.Naming.TV;
+using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.RdZurg.Library;
 
@@ -17,6 +19,13 @@ public sealed class ReleaseNames
 
     // Refuses the digit after an audio channel decimal when a codec follows it, as in 5.1x265 or AAC2.0x264.
     private const string NotChannelDecimal = @"(?!(?<=(?:^|[^0-9])[0-9][.,])[0-9][xX]26[4-6](?![0-9]))";
+
+    // A frame size whose width Jellyfin's CleanDateTimes expressions would read as a year: (19|20)[0-9]{2} behind
+    // the separators they accept, which follow a character that is not one, then a height of 600 to 9999. A lower
+    // right-hand side is not a frame: Formula.1.2025x126 is an episode and 2006x264 a year glued to its codec.
+    private static readonly Regex _yearShapedResolution = new(
+        @"(?<=[^_,.()\[\]\-][ _.()\[\]\-]+)(?:19|20)[0-9]{2}[xX](?:[6-9][0-9]{2}|[1-9][0-9]{3})(?![0-9])",
+        RegexOptions.CultureInvariant);
 
     private static readonly string[] _videoExtensions =
     {
@@ -172,6 +181,38 @@ public sealed class ReleaseNames
             "/{0}/{1}",
             torrentName.Replace('/', '_'),
             Path.GetFileName(filePath));
+
+    /// <summary>Reads a name and year out of a release name the way Jellyfin does, without taking a resolution for the year.</summary>
+    /// <param name="libraryManager">Jellyfin's library manager, whose <c>ParseName</c> does the reading.</param>
+    /// <param name="name">A humanised release, file or series name.</param>
+    /// <returns>The name and year Jellyfin reads once every year-shaped frame width has been renamed.</returns>
+    /// <remarks>
+    /// <para>
+    /// Jellyfin's year expression is <c>(19|20)[0-9]{2}</c> behind a separator, so the width of <c>1920x1080</c> or
+    /// <c>2048x858</c> is a year to it, and <c>.+</c> in front of it is greedy, so that width wins over a real year
+    /// earlier in the name. <c>[Beatrice-Raws] Evangelion 1.0 You Are (Not) Alone [BDRip 1920x1080 HEVC TrueHD]</c> was
+    /// filed as a film from 1920, which no TMDb search matches and which the version merge keys on.
+    /// </para>
+    /// <para>
+    /// The expression is Jellyfin's and cannot be changed here, so the frame size is renamed before Jellyfin sees it:
+    /// a width that reads as a year, an <c>x</c> and a height from 600 up becomes <c>1080p</c>. Every such frame is
+    /// 1900 to 2099 pixels wide, a 2K frame, and <c>1080p</c> is one of the tags Jellyfin's clean strings cut a name
+    /// on, so a name without a real year still ends where the resolution began. Below 600 the right-hand side is
+    /// something else: a season and episode in <c>MythBusters.2005x17</c> and <c>Formula.1.2025x126</c>, a codec in
+    /// <c>Rang De Basanti 2006x264</c>. The lowest real height among the 24,965 DMM names this changes is 696 and the
+    /// highest episode number 126.
+    /// </para>
+    /// <para>
+    /// Every call to <c>ParseName</c> goes through here, the film's name and year, the release name the version merge
+    /// groups on, and a series' name, so the three cannot disagree about a release.
+    /// </para>
+    /// </remarks>
+    public static MediaBrowser.Controller.Providers.ItemLookupInfo ParseName(ILibraryManager libraryManager, string name)
+    {
+        ArgumentNullException.ThrowIfNull(libraryManager);
+        ArgumentNullException.ThrowIfNull(name);
+        return libraryManager.ParseName(_yearShapedResolution.Replace(name, "1080p"));
+    }
 
     /// <summary>Turns a dotted release name into something a metadata provider can search for.</summary>
     /// <param name="value">A release name or series name.</param>

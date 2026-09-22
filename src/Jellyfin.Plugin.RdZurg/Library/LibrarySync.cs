@@ -453,7 +453,7 @@ public sealed class LibrarySync
             return null;
         }
 
-        var parsed = _libraryManager.ParseName(ReleaseNames.Humanise(Path.GetFileNameWithoutExtension(filePath)));
+        var parsed = ReleaseNames.ParseName(_libraryManager, ReleaseNames.Humanise(Path.GetFileNameWithoutExtension(filePath)));
         var title = string.IsNullOrWhiteSpace(parsed.Name) ? ReleaseNames.Humanise(torrentName) : parsed.Name;
 
         var movie = new Movie
@@ -504,7 +504,7 @@ public sealed class LibrarySync
         }
 
         var raw = ReleaseNames.Humanise(parsed.SeriesName!);
-        var seriesName = _libraryManager.ParseName(raw).Name;
+        var seriesName = ReleaseNames.ParseName(_libraryManager, raw).Name;
         if (string.IsNullOrWhiteSpace(seriesName))
         {
             seriesName = raw;
@@ -662,7 +662,7 @@ public sealed class LibrarySync
             return (null, null);
         }
 
-        var parsed = _libraryManager.ParseName(release);
+        var parsed = ReleaseNames.ParseName(_libraryManager, release);
         return (parsed.Name, parsed.Year);
     }
 
