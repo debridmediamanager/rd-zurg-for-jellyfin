@@ -122,6 +122,7 @@ public sealed class LibrarySync
         }
 
         var episodesRefiled = await RefileMisreadEpisodesAsync(torrents, known, cancellationToken).ConfigureAwait(false);
+        var yearsCorrected = await CorrectResolutionYearsAsync(known.Values, cancellationToken).ConfigureAwait(false);
 
         // Build liveness from the complete listing, before any detail requests can fail.
         // Pending or temporarily errored torrents also retain their existing links.
@@ -261,7 +262,7 @@ public sealed class LibrarySync
             : (0, 0);
 
         progress.Report(95);
-        QueueMetadata(newMovies, seriesByName.Values);
+        QueueMetadata(newMovies.Concat(yearsCorrected), seriesByName.Values);
         progress.Report(100);
 
         return new SyncResult
@@ -276,7 +277,8 @@ public sealed class LibrarySync
             VersionsReleased = versionsReleased,
             ItemsRemoved = removed,
             LeftoversRemoved = leftoversRemoved,
-            EpisodesRefiled = episodesRefiled
+            EpisodesRefiled = episodesRefiled,
+            YearsCorrected = yearsCorrected.Count
         };
     }
 
@@ -849,6 +851,70 @@ public sealed class LibrarySync
         }
 
         return refiled;
+    }
+
+    /// <summary>Gives a film back the name and year an earlier build read out of its resolution instead.</summary>
+    /// <param name="items">The library's items.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The films corrected, whose metadata has to be looked up again.</returns>
+    /// <remarks>
+    /// <para>
+    /// Builds before 1.0.6.0 filed <c>Fruits Basket 2nd Season - 03 [BD 1920x1080 …]</c> as a film from 1920, and TMDb
+    /// matches nothing under that year, so the film keeps the name and year it was filed with for good.
+    /// </para>
+    /// <para>
+    /// A film is corrected only when its name and year are still exactly what Jellyfin's own <c>ParseName</c> reads out
+    /// of the release name in its path, the parse reads a different year once the resolution is renamed, nothing has
+    /// matched it to a TMDb or IMDb title and neither the item nor its name is locked. So a film a metadata provider or a person has
+    /// named is never touched, and a corrected one cannot be corrected again: its year no longer matches the old parse.
+    /// Its id stays the same, so its watch state and versions stay with it.
+    /// </para>
+    /// </remarks>
+    private async Task<List<Movie>> CorrectResolutionYearsAsync(IEnumerable<BaseItem> items, CancellationToken cancellationToken)
+    {
+        var corrected = new List<Movie>();
+
+        foreach (var movie in items.OfType<Movie>())
+        {
+            var release = ReleaseNameFromPath(movie.Path);
+            if (release is null
+                || movie.IsLocked
+                || movie.LockedFields.Contains(MetadataField.Name)
+                || movie.HasProviderId(MetadataProvider.Tmdb)
+                || movie.HasProviderId(MetadataProvider.Imdb))
+            {
+                continue;
+            }
+
+            var filed = _libraryManager.ParseName(release);
+            var parsed = ReleaseNames.ParseName(_libraryManager, release);
+
+            if (filed.Year == parsed.Year
+                || movie.ProductionYear != filed.Year
+                || string.IsNullOrWhiteSpace(filed.Name)
+                || !string.Equals(movie.Name, filed.Name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "Refiling {Name} ({Year}) as {NewName} ({NewYear}): an earlier build read the year out of its resolution",
+                movie.Name,
+                movie.ProductionYear,
+                string.IsNullOrWhiteSpace(parsed.Name) ? movie.Name : parsed.Name,
+                parsed.Year);
+
+            if (!string.IsNullOrWhiteSpace(parsed.Name))
+            {
+                movie.Name = parsed.Name;
+            }
+
+            movie.ProductionYear = parsed.Year;
+            await movie.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+            corrected.Add(movie);
+        }
+
+        return corrected;
     }
 
     /// <summary>Removes the season and series a refiled episode left with nothing in them.</summary>

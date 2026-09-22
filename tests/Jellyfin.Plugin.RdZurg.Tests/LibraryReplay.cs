@@ -83,35 +83,40 @@ internal sealed class LibraryReplay
 
         foreach (var entry in Fixture.Items)
         {
-            Assert.Equal("Movie", entry.Type);
-            var movie = new Movie
-            {
-                Id = entry.Id,
-                Name = entry.Name,
-                ProductionYear = entry.ProductionYear,
-                Size = entry.Size,
-                ParentId = movies.Id,
-                // 1.0.0.0 wrote unsigned URLs; every later build signs them.
-                Path = entry.Signed
-                    ? LinkResolver.BuildUrl(Config.PublicBaseUrl, entry.Key, entry.FileName)
-                    : Config.PublicBaseUrl + "/RdZurg/Stream/" + entry.Key + "/" + entry.EscapedFileName,
-                PrimaryVersionId = entry.PrimaryVersionId,
-                LinkedAlternateVersions = entry.LinkedAlternateVersions
-                    .Select(id => new LinkedChild { ItemId = id, Type = LinkedChildType.LinkedAlternateVersion })
-                    .ToArray()
-            };
+            Assert.Contains(entry.Type, new[] { "Movie", "Episode" });
+            Video video = entry.Type == "Episode"
+                ? new Episode
+                {
+                    ParentId = shows.Id,
+                    ParentIndexNumber = entry.ParentIndexNumber,
+                    IndexNumber = entry.IndexNumber,
+                    SeriesName = entry.SeriesName
+                }
+                : new Movie { ParentId = movies.Id };
+            video.Id = entry.Id;
+            video.Name = entry.Name;
+            video.ProductionYear = entry.ProductionYear;
+            video.Size = entry.Size;
+            // 1.0.0.0 wrote unsigned URLs; every later build signs them.
+            video.Path = entry.Signed
+                ? LinkResolver.BuildUrl(Config.PublicBaseUrl, entry.Key, entry.FileName)
+                : Config.PublicBaseUrl + "/RdZurg/Stream/" + entry.Key + "/" + entry.EscapedFileName;
+            video.PrimaryVersionId = entry.PrimaryVersionId;
+            video.LinkedAlternateVersions = entry.LinkedAlternateVersions
+                .Select(id => new LinkedChild { ItemId = id, Type = LinkedChildType.LinkedAlternateVersion })
+                .ToArray();
 
             foreach (var (provider, value) in entry.ProviderIds)
             {
-                movie.SetProviderId(provider, value);
+                video.SetProviderId(provider, value);
             }
 
             if (entry.Link is not null)
             {
-                movie.SetProviderId(LibrarySync.LinkProviderId, entry.Link);
+                video.SetProviderId(LibrarySync.LinkProviderId, entry.Link);
             }
 
-            _items[movie.Id] = movie;
+            _items[video.Id] = video;
         }
 
         var manager = new Mock<ILibraryManager>();
@@ -192,14 +197,16 @@ internal sealed class LibraryReplay
     /// <summary>Takes an item out of the library, as if it had never been added.</summary>
     public void Forget(Guid id) => Assert.True(_items.Remove(id));
 
-    /// <summary>Every film the replay holds, in a form two passes can be compared by.</summary>
+    /// <summary>Every film and episode the replay holds, in a form two passes can be compared by.</summary>
     public IReadOnlyDictionary<Guid, string> Snapshot()
-        => Movies.ToDictionary(
+        => _items.Values.OfType<Video>().ToDictionary(
             m => m.Id,
             m => string.Join(
                 '|',
                 m.Name,
                 m.ProductionYear,
+                m.ParentIndexNumber,
+                m.IndexNumber,
                 m.PrimaryVersionId,
                 string.Join(',', m.LinkedAlternateVersions.Select(l => l.ItemId).Order()),
                 string.Join(',', m.ProviderIds.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => p.Key + "=" + p.Value)),
@@ -325,6 +332,15 @@ internal sealed class FixtureItem
 
     [JsonPropertyName("link")]
     public string? Link { get; set; }
+
+    [JsonPropertyName("parentIndexNumber")]
+    public int? ParentIndexNumber { get; set; }
+
+    [JsonPropertyName("indexNumber")]
+    public int? IndexNumber { get; set; }
+
+    [JsonPropertyName("seriesName")]
+    public string? SeriesName { get; set; }
 
     [JsonPropertyName("providerIds")]
     public Dictionary<string, string> ProviderIds { get; set; } = new();

@@ -35,4 +35,7 @@ public sealed record SyncResult
 
     /// <summary>Gets how many films an earlier build filed as episodes were let go of, to be added as films.</summary>
     public int EpisodesRefiled { get; init; }
+
+    /// <summary>Gets how many films an earlier build had filed under a year read out of their resolution.</summary>
+    public int YearsCorrected { get; init; }
 }

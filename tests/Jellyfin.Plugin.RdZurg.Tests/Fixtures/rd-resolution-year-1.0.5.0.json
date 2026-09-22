@@ -1,0 +1,671 @@
+{
+ "source": "zen jellyfin.db (RD zurg 1.0.5.0) and the RD test account, read 2026-09-22: the film filed under its resolution and three controls, with the listing entries of their torrents and /torrents/info for the one a pass asks about. Link keys, torrent ids and hashes are replaced with stable stand-ins.",
+ "items": [
+  {
+   "id": "503E152E-7E99-C40C-FB0C-37CAD61A2F17",
+   "type": "Movie",
+   "name": "Fruits Basket 2nd Season",
+   "productionYear": 1920,
+   "size": 1869778297,
+   "path": "http://zen:8096/RdZurg/Stream/MTIVIZEDXBXDM/%5BAenianos%5D%20Fruits%20Basket%202nd%20Season%20-%2003%20%5BBD%201920x1080%20x264%20AAC-FLAC%5D%20%5BDUAL-EduvalDxD%5D%20%5BAC12C446%5D.mkv",
+   "parentIndexNumber": null,
+   "indexNumber": null,
+   "seriesName": null,
+   "providerIds": {
+    "RdZurgLink": "MTIVIZEDXBXDM"
+   },
+   "link": "MTIVIZEDXBXDM",
+   "idKind": "urlDerived",
+   "signed": true,
+   "primaryVersionId": null,
+   "linkedAlternateVersions": []
+  },
+  {
+   "id": "D8AC3395-983F-D8FC-0623-355FD66F32CF",
+   "type": "Movie",
+   "name": "Riders of Justice",
+   "productionYear": 2020,
+   "size": 1275740671,
+   "path": "http://zen:8096/RdZurg/Stream/PHQRQRIHPRQDO/Riders.of.Justice.2020.1080p.ZEE5.WEB.DL.MULTi.AAC2.0.H.265-TR.mkv",
+   "parentIndexNumber": null,
+   "indexNumber": null,
+   "seriesName": null,
+   "providerIds": {
+    "Imdb": "tt11655202",
+    "RdZurgLink": "PHQRQRIHPRQDO",
+    "Tmdb": "663870"
+   },
+   "link": "PHQRQRIHPRQDO",
+   "idKind": "canonical",
+   "signed": true,
+   "primaryVersionId": null,
+   "linkedAlternateVersions": []
+  },
+  {
+   "id": "35946810-1EDD-203A-66F9-99D5E5027931",
+   "type": "Movie",
+   "name": "Salinan Batman Return of the Caped Crusaders",
+   "productionYear": 2008,
+   "size": 1075025385,
+   "path": "http://zen:8096/RdZurg/Stream/RFTVZTNNQQTHK/Salinan%20Batman.Return.of.the.Caped.Crusaders.2008.1080p.MAX.WEB.DL.DDP5.1.EN-ID.H.264-S3CR3T.mkv",
+   "parentIndexNumber": null,
+   "indexNumber": null,
+   "seriesName": null,
+   "providerIds": {
+    "RdZurgLink": "RFTVZTNNQQTHK"
+   },
+   "link": "RFTVZTNNQQTHK",
+   "idKind": "canonical",
+   "signed": true,
+   "primaryVersionId": null,
+   "linkedAlternateVersions": []
+  },
+  {
+   "id": "D284266B-F866-B76F-CC9C-8F29F86771FB",
+   "type": "Episode",
+   "name": "Episode 12",
+   "productionYear": null,
+   "size": 1515762841,
+   "path": "http://zen:8096/RdZurg/Stream/PBPJZGRPOHKLR/Madame.Antoine.The.Love.Therapist.S01E12.Madame.Antoine.The.Love.Therapist.EP.12.1080p.AMZN.WEB.DL.DDP2.0.HEVC-Saon.mkv",
+   "parentIndexNumber": 1,
+   "indexNumber": 12,
+   "seriesName": "Madame Antoine The Love Therapist",
+   "providerIds": {
+    "RdZurgLink": "PBPJZGRPOHKLR"
+   },
+   "link": "PBPJZGRPOHKLR",
+   "idKind": "canonical",
+   "signed": true,
+   "primaryVersionId": null,
+   "linkedAlternateVersions": []
+  }
+ ],
+ "listing": [
+  {
+   "id": "RFEQQPFKEFPLB",
+   "filename": "a17bc43166b5bfd1d600be59c34e1415d9412afd {imdb-tt9304350}",
+   "hash": "dfaddccbf2960481ee6bcdbe24f4b3419c085e26",
+   "bytes": 97526076182,
+   "host": "real-debrid.com",
+   "split": 2000,
+   "progress": 100,
+   "status": "downloaded",
+   "added": "2026-08-20T08:57:30.000Z",
+   "links": [
+    "https://real-debrid.com/d/QUKWAIJIRMCBJ",
+    "https://real-debrid.com/d/ASHSCIURJKUMW",
+    "https://real-debrid.com/d/UVJAAHVSCIAGL",
+    "https://real-debrid.com/d/ECWBXYRRILKCH",
+    "https://real-debrid.com/d/NSUQKVRSVHEVT",
+    "https://real-debrid.com/d/STRWILMESAQRW",
+    "https://real-debrid.com/d/NQOMSTVTIXLFA",
+    "https://real-debrid.com/d/MNPLYYHXATASH",
+    "https://real-debrid.com/d/FYROGTFRTVEUH",
+    "https://real-debrid.com/d/TLAPQWHWWUQDX",
+    "https://real-debrid.com/d/YIDQWMLQHOHWM",
+    "https://real-debrid.com/d/KPHDOQOGSSVTT",
+    "https://real-debrid.com/d/FWPKIBJSLQSDS",
+    "https://real-debrid.com/d/AUQRWRJSMKTLT",
+    "https://real-debrid.com/d/HEKKYSUPTABZU",
+    "https://real-debrid.com/d/QBXYZUQASRFRD",
+    "https://real-debrid.com/d/FYMRBQSUHPMCV",
+    "https://real-debrid.com/d/RNRKUERRUNJCN",
+    "https://real-debrid.com/d/SHAUTKIUZDFQO",
+    "https://real-debrid.com/d/JMKUVSTMUTQIV",
+    "https://real-debrid.com/d/VUZBOLSESSFIJ",
+    "https://real-debrid.com/d/QOHDEHTRMQQEK",
+    "https://real-debrid.com/d/SDISEOIXJZBKM",
+    "https://real-debrid.com/d/MVHVXCRZNAQND",
+    "https://real-debrid.com/d/SIJWWOOXKDRTD",
+    "https://real-debrid.com/d/DJQQKTPHPSPNN",
+    "https://real-debrid.com/d/VGJKUTHDHSMQU",
+    "https://real-debrid.com/d/MTIVIZEDXBXDM",
+    "https://real-debrid.com/d/CSQNRSCIKCTUV",
+    "https://real-debrid.com/d/TTRIVLHTKKJVY",
+    "https://real-debrid.com/d/VXQUTQRQIASTO",
+    "https://real-debrid.com/d/BVZFJTHXUQNGX",
+    "https://real-debrid.com/d/DSALNGFHALTQD",
+    "https://real-debrid.com/d/LSEJMSVAGBZOQ",
+    "https://real-debrid.com/d/ZOUTCFDDWPNLM",
+    "https://real-debrid.com/d/ZYSUZSLWTLVVF",
+    "https://real-debrid.com/d/FEHOPNJHJJBJQ",
+    "https://real-debrid.com/d/UDPSAXNWTVRVY",
+    "https://real-debrid.com/d/SPGHHSTTLVYRB",
+    "https://real-debrid.com/d/YQQURFHXUBXUZ",
+    "https://real-debrid.com/d/SMMSKPMLNGTLY",
+    "https://real-debrid.com/d/FUZCPUNXPLGKF",
+    "https://real-debrid.com/d/ZPJYQBRSVPTSR",
+    "https://real-debrid.com/d/YFMXXEFVFDFOD",
+    "https://real-debrid.com/d/TYCHPGEUOLPFG",
+    "https://real-debrid.com/d/FPCILIFVNSCKV",
+    "https://real-debrid.com/d/MQWRLESVUQRDY",
+    "https://real-debrid.com/d/LJHULHBLLRSUQ",
+    "https://real-debrid.com/d/YCSCTBTVPGGPL",
+    "https://real-debrid.com/d/FTNJRYZUQSNQV",
+    "https://real-debrid.com/d/GNEYRMHWZJRUL",
+    "https://real-debrid.com/d/GBVTRZESARAUO",
+    "https://real-debrid.com/d/GSYXUMWPRQHMM",
+    "https://real-debrid.com/d/TDCFGSUBBLTOQ",
+    "https://real-debrid.com/d/UXKZSYSTOPQCE",
+    "https://real-debrid.com/d/AUAUITZDGOMQA",
+    "https://real-debrid.com/d/MEVUVVURSWMGU",
+    "https://real-debrid.com/d/LYPSITRQEVSRH",
+    "https://real-debrid.com/d/EJEQVSDQVILEG",
+    "https://real-debrid.com/d/ATJRIFFVMAKUS",
+    "https://real-debrid.com/d/KOSZQWSLUXIVN",
+    "https://real-debrid.com/d/XRJRSRSIFVNQU",
+    "https://real-debrid.com/d/ARHKWFWXBQQOV"
+   ],
+   "ended": "2026-07-30T09:30:27.000Z"
+  },
+  {
+   "id": "EQRGUVETBSJKY",
+   "filename": "Riders.of.Justice.2020.1080p.ZEE5.WEB.DL.MULTi.AAC2.0.H.265-TR.mkv",
+   "hash": "a937e536093244b306105a40c913b5a79b89befb",
+   "bytes": 1275740671,
+   "host": "real-debrid.com",
+   "split": 2000,
+   "progress": 100,
+   "status": "downloaded",
+   "added": "2026-07-31T14:15:30.000Z",
+   "links": [
+    "https://real-debrid.com/d/PHQRQRIHPRQDO"
+   ],
+   "ended": "2026-07-31T14:16:19.000Z"
+  },
+  {
+   "id": "UERXSPPTUTYIA",
+   "filename": "Salinan Batman.Return.of.the.Caped.Crusaders.2008.1080p.MAX.WEB.DL.DDP5.1.EN-ID.H.264-S3CR3T.mkv",
+   "hash": "3239912d0260dfedf9629de64780f9ebee57adfb",
+   "bytes": 1075025385,
+   "host": "real-debrid.com",
+   "split": 2000,
+   "progress": 100,
+   "status": "downloaded",
+   "added": "2026-07-28T05:09:49.000Z",
+   "links": [
+    "https://real-debrid.com/d/RFTVZTNNQQTHK"
+   ],
+   "ended": "2026-07-28T05:10:18.000Z"
+  },
+  {
+   "id": "PXUPUQVSRHWOU",
+   "filename": "Madame.Antoine.The.Love.Therapist.S01E12.Madame.Antoine.The.Love.Therapist.EP.12.1080p.AMZN.WEB.DL.DDP2.0.HEVC-Saon.mkv",
+   "hash": "6b39bfda4dbe9b452101e16bfd22cfdb0918bbdf",
+   "bytes": 1515762841,
+   "host": "real-debrid.com",
+   "split": 2000,
+   "progress": 100,
+   "status": "downloaded",
+   "added": "2026-08-06T23:05:27.000Z",
+   "links": [
+    "https://real-debrid.com/d/PBPJZGRPOHKLR"
+   ],
+   "ended": "2026-08-06T23:06:12.000Z"
+  }
+ ],
+ "info": {
+  "RFEQQPFKEFPLB": {
+   "id": "RFEQQPFKEFPLB",
+   "filename": "a17bc43166b5bfd1d600be59c34e1415d9412afd {imdb-tt9304350}",
+   "original_filename": "a17bc43166b5bfd1d600be59c34e1415d9412afd {imdb-tt9304350}",
+   "hash": "dfaddccbf2960481ee6bcdbe24f4b3419c085e26",
+   "bytes": 97526076182,
+   "original_bytes": 97526076182,
+   "host": "real-debrid.com",
+   "split": 2000,
+   "progress": 100,
+   "status": "downloaded",
+   "added": "2026-08-20T08:57:30.000Z",
+   "files": [
+    {
+     "id": 1,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 01 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [A806C014].mkv",
+     "bytes": 1664272702,
+     "selected": 1
+    },
+    {
+     "id": 2,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 02 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [FE9DD8C1].mkv",
+     "bytes": 1650226832,
+     "selected": 1
+    },
+    {
+     "id": 3,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 03 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [3D398079].mkv",
+     "bytes": 1720833327,
+     "selected": 1
+    },
+    {
+     "id": 4,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 04 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [4147E43A].mkv",
+     "bytes": 1605417768,
+     "selected": 1
+    },
+    {
+     "id": 5,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 05 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [A880B4B9].mkv",
+     "bytes": 1544873933,
+     "selected": 1
+    },
+    {
+     "id": 6,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 06 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [D0ACBFA4].mkv",
+     "bytes": 1599993479,
+     "selected": 1
+    },
+    {
+     "id": 7,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 07 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [50E42FFD].mkv",
+     "bytes": 1577059836,
+     "selected": 1
+    },
+    {
+     "id": 8,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 08 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [21AB9EC7].mkv",
+     "bytes": 1579038034,
+     "selected": 1
+    },
+    {
+     "id": 9,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 09 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [8B5A0AEB].mkv",
+     "bytes": 1713250879,
+     "selected": 1
+    },
+    {
+     "id": 10,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 10 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [AF8EF4CC].mkv",
+     "bytes": 1547078288,
+     "selected": 1
+    },
+    {
+     "id": 11,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 11 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [FF44D710].mkv",
+     "bytes": 1631183742,
+     "selected": 1
+    },
+    {
+     "id": 12,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 12 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [9811C90E].mkv",
+     "bytes": 1670479660,
+     "selected": 1
+    },
+    {
+     "id": 13,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 13 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [1F2B410B].mkv",
+     "bytes": 1565650828,
+     "selected": 1
+    },
+    {
+     "id": 14,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 14 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [7BE97938].mkv",
+     "bytes": 1596274860,
+     "selected": 1
+    },
+    {
+     "id": 15,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 15 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [284CCB3F].mkv",
+     "bytes": 1702523861,
+     "selected": 1
+    },
+    {
+     "id": 16,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 16 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [34F236DC].mkv",
+     "bytes": 1669779315,
+     "selected": 1
+    },
+    {
+     "id": 17,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 17 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [CA3B9890].mkv",
+     "bytes": 1678379690,
+     "selected": 1
+    },
+    {
+     "id": 18,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 18 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [BB236A82].mkv",
+     "bytes": 1633836398,
+     "selected": 1
+    },
+    {
+     "id": 19,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 19 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [E98C9D74].mkv",
+     "bytes": 1731419201,
+     "selected": 1
+    },
+    {
+     "id": 20,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 20 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [2ED3E6D0].mkv",
+     "bytes": 1644501112,
+     "selected": 1
+    },
+    {
+     "id": 21,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 21 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [4D42B56D].mkv",
+     "bytes": 1652856456,
+     "selected": 1
+    },
+    {
+     "id": 22,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 22 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [C327F92A].mkv",
+     "bytes": 1611439793,
+     "selected": 1
+    },
+    {
+     "id": 23,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 23 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [E7CB387B].mkv",
+     "bytes": 1615069927,
+     "selected": 1
+    },
+    {
+     "id": 24,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 24 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [E46279BA].mkv",
+     "bytes": 1657918475,
+     "selected": 1
+    },
+    {
+     "id": 25,
+     "path": "/[Aenianos] Fruits Basket 1st Season - 25 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [D92235DC].mkv",
+     "bytes": 1635907993,
+     "selected": 1
+    },
+    {
+     "id": 26,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 01 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [0EEB5D10].mkv",
+     "bytes": 1755937197,
+     "selected": 1
+    },
+    {
+     "id": 27,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 02 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [56711C69].mkv",
+     "bytes": 1665606006,
+     "selected": 1
+    },
+    {
+     "id": 28,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 03 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [AC12C446].mkv",
+     "bytes": 1869778297,
+     "selected": 1
+    },
+    {
+     "id": 29,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 04 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [F4F85959].mkv",
+     "bytes": 1654761393,
+     "selected": 1
+    },
+    {
+     "id": 30,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 05 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [41510B15].mkv",
+     "bytes": 1751368202,
+     "selected": 1
+    },
+    {
+     "id": 31,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 06 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [EAF125B8].mkv",
+     "bytes": 1709428600,
+     "selected": 1
+    },
+    {
+     "id": 32,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 07 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [B0A0331E].mkv",
+     "bytes": 1711675897,
+     "selected": 1
+    },
+    {
+     "id": 33,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 08 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [207B7C79].mkv",
+     "bytes": 1759822408,
+     "selected": 1
+    },
+    {
+     "id": 34,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 09 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [3E3549D1].mkv",
+     "bytes": 1698199854,
+     "selected": 1
+    },
+    {
+     "id": 35,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 10 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [EAAF99F9].mkv",
+     "bytes": 1702226936,
+     "selected": 1
+    },
+    {
+     "id": 36,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 11 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [748B1E4B].mkv",
+     "bytes": 1647063128,
+     "selected": 1
+    },
+    {
+     "id": 37,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 12 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [BA17F974].mkv",
+     "bytes": 1613643638,
+     "selected": 1
+    },
+    {
+     "id": 38,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 13 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [54D53EEA].mkv",
+     "bytes": 1710506678,
+     "selected": 1
+    },
+    {
+     "id": 39,
+     "path": "/[Aenianos] Fruits Basket 2nd Season - 14 [BD 1920x1080 x264 AAC-FLAC] [DUAL-EduvalDxD] [E317D763].mkv",
+     "bytes": 1658792262,
+     "selected": 1
+    },
+    {
+     "id": 40,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 15 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1679611519,
+     "selected": 1
+    },
+    {
+     "id": 41,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 16 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1630976481,
+     "selected": 1
+    },
+    {
+     "id": 42,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 17 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1692398330,
+     "selected": 1
+    },
+    {
+     "id": 43,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 18 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1684916742,
+     "selected": 1
+    },
+    {
+     "id": 44,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 19 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1629533332,
+     "selected": 1
+    },
+    {
+     "id": 45,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 20 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1569930491,
+     "selected": 1
+    },
+    {
+     "id": 46,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 21 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1635034225,
+     "selected": 1
+    },
+    {
+     "id": 47,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 22 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1611839095,
+     "selected": 1
+    },
+    {
+     "id": 48,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 23 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1587517152,
+     "selected": 1
+    },
+    {
+     "id": 49,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 24 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1568102385,
+     "selected": 1
+    },
+    {
+     "id": 50,
+     "path": "/[EduvalDxD] Fruits Basket 2nd Season - 25 [BD 1920x1080 x264 AAC-FLAC] [DUAL].mkv",
+     "bytes": 1612298385,
+     "selected": 1
+    },
+    {
+     "id": 51,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 01 [WEB 1080p DUAL].mkv",
+     "bytes": 1089322709,
+     "selected": 1
+    },
+    {
+     "id": 52,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 02 [WEB 1080p DUAL].mkv",
+     "bytes": 1099397851,
+     "selected": 1
+    },
+    {
+     "id": 53,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 03 [WEB 1080p DUAL].mkv",
+     "bytes": 1103210999,
+     "selected": 1
+    },
+    {
+     "id": 54,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 04 [WEB 1080p DUAL].mkv",
+     "bytes": 1112428242,
+     "selected": 1
+    },
+    {
+     "id": 55,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 05 [WEB 1080p DUAL].mkv",
+     "bytes": 1160097754,
+     "selected": 1
+    },
+    {
+     "id": 56,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 06 [WEB 1080p DUAL].mkv",
+     "bytes": 1169700630,
+     "selected": 1
+    },
+    {
+     "id": 57,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 07 [WEB 1080p DUAL].mkv",
+     "bytes": 1184938865,
+     "selected": 1
+    },
+    {
+     "id": 58,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 08 [WEB 1080p DUAL].mkv",
+     "bytes": 1197354721,
+     "selected": 1
+    },
+    {
+     "id": 59,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 09 [WEB 1080p DUAL].mkv",
+     "bytes": 1170021881,
+     "selected": 1
+    },
+    {
+     "id": 60,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 10 [WEB 1080p DUAL].mkv",
+     "bytes": 1195755499,
+     "selected": 1
+    },
+    {
+     "id": 61,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 11 [WEB 1080p DUAL].mkv",
+     "bytes": 1111791346,
+     "selected": 1
+    },
+    {
+     "id": 62,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 12 [WEB 1080p DUAL].mkv",
+     "bytes": 1130011425,
+     "selected": 1
+    },
+    {
+     "id": 63,
+     "path": "/[EduvalDxD] Fruits Basket The Final - 13 [WEB 1080p DUAL].mkv",
+     "bytes": 1091809238,
+     "selected": 1
+    }
+   ],
+   "links": [
+    "https://real-debrid.com/d/QUKWAIJIRMCBJ",
+    "https://real-debrid.com/d/ASHSCIURJKUMW",
+    "https://real-debrid.com/d/UVJAAHVSCIAGL",
+    "https://real-debrid.com/d/ECWBXYRRILKCH",
+    "https://real-debrid.com/d/NSUQKVRSVHEVT",
+    "https://real-debrid.com/d/STRWILMESAQRW",
+    "https://real-debrid.com/d/NQOMSTVTIXLFA",
+    "https://real-debrid.com/d/MNPLYYHXATASH",
+    "https://real-debrid.com/d/FYROGTFRTVEUH",
+    "https://real-debrid.com/d/TLAPQWHWWUQDX",
+    "https://real-debrid.com/d/YIDQWMLQHOHWM",
+    "https://real-debrid.com/d/KPHDOQOGSSVTT",
+    "https://real-debrid.com/d/FWPKIBJSLQSDS",
+    "https://real-debrid.com/d/AUQRWRJSMKTLT",
+    "https://real-debrid.com/d/HEKKYSUPTABZU",
+    "https://real-debrid.com/d/QBXYZUQASRFRD",
+    "https://real-debrid.com/d/FYMRBQSUHPMCV",
+    "https://real-debrid.com/d/RNRKUERRUNJCN",
+    "https://real-debrid.com/d/SHAUTKIUZDFQO",
+    "https://real-debrid.com/d/JMKUVSTMUTQIV",
+    "https://real-debrid.com/d/VUZBOLSESSFIJ",
+    "https://real-debrid.com/d/QOHDEHTRMQQEK",
+    "https://real-debrid.com/d/SDISEOIXJZBKM",
+    "https://real-debrid.com/d/MVHVXCRZNAQND",
+    "https://real-debrid.com/d/SIJWWOOXKDRTD",
+    "https://real-debrid.com/d/DJQQKTPHPSPNN",
+    "https://real-debrid.com/d/VGJKUTHDHSMQU",
+    "https://real-debrid.com/d/MTIVIZEDXBXDM",
+    "https://real-debrid.com/d/CSQNRSCIKCTUV",
+    "https://real-debrid.com/d/TTRIVLHTKKJVY",
+    "https://real-debrid.com/d/VXQUTQRQIASTO",
+    "https://real-debrid.com/d/BVZFJTHXUQNGX",
+    "https://real-debrid.com/d/DSALNGFHALTQD",
+    "https://real-debrid.com/d/LSEJMSVAGBZOQ",
+    "https://real-debrid.com/d/ZOUTCFDDWPNLM",
+    "https://real-debrid.com/d/ZYSUZSLWTLVVF",
+    "https://real-debrid.com/d/FEHOPNJHJJBJQ",
+    "https://real-debrid.com/d/UDPSAXNWTVRVY",
+    "https://real-debrid.com/d/SPGHHSTTLVYRB",
+    "https://real-debrid.com/d/YQQURFHXUBXUZ",
+    "https://real-debrid.com/d/SMMSKPMLNGTLY",
+    "https://real-debrid.com/d/FUZCPUNXPLGKF",
+    "https://real-debrid.com/d/ZPJYQBRSVPTSR",
+    "https://real-debrid.com/d/YFMXXEFVFDFOD",
+    "https://real-debrid.com/d/TYCHPGEUOLPFG",
+    "https://real-debrid.com/d/FPCILIFVNSCKV",
+    "https://real-debrid.com/d/MQWRLESVUQRDY",
+    "https://real-debrid.com/d/LJHULHBLLRSUQ",
+    "https://real-debrid.com/d/YCSCTBTVPGGPL",
+    "https://real-debrid.com/d/FTNJRYZUQSNQV",
+    "https://real-debrid.com/d/GNEYRMHWZJRUL",
+    "https://real-debrid.com/d/GBVTRZESARAUO",
+    "https://real-debrid.com/d/GSYXUMWPRQHMM",
+    "https://real-debrid.com/d/TDCFGSUBBLTOQ",
+    "https://real-debrid.com/d/UXKZSYSTOPQCE",
+    "https://real-debrid.com/d/AUAUITZDGOMQA",
+    "https://real-debrid.com/d/MEVUVVURSWMGU",
+    "https://real-debrid.com/d/LYPSITRQEVSRH",
+    "https://real-debrid.com/d/EJEQVSDQVILEG",
+    "https://real-debrid.com/d/ATJRIFFVMAKUS",
+    "https://real-debrid.com/d/KOSZQWSLUXIVN",
+    "https://real-debrid.com/d/XRJRSRSIFVNQU",
+    "https://real-debrid.com/d/ARHKWFWXBQQOV"
+   ],
+   "ended": "2026-07-30T09:30:27.000Z"
+  }
+ },
+ "partialTorrents": [
+  "RFEQQPFKEFPLB"
+ ]
+}

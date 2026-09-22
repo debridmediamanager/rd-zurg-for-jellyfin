@@ -83,7 +83,8 @@ public class RdSyncTask : IScheduledTask
             + "Added {Movies} movies and {Episodes} episodes across {Series} series. "
             + "Skipped {Duplicates} byte-identical re-adds, folded {Merged} in as alternate versions, released {Released} that may not be merged, "
             + "removed {Removed} gone from the account and {Leftovers} added twice by an earlier build, "
-            + "and refiled {Refiled} films an earlier build had filed as episodes.",
+            + "refiled {Refiled} films an earlier build had filed as episodes, "
+            + "and corrected {Years} films an earlier build had filed under a year read out of their resolution.",
             result.TorrentsSeen,
             result.TorrentsAlreadyKnown,
             result.MoviesAdded,
@@ -94,6 +95,7 @@ public class RdSyncTask : IScheduledTask
             result.VersionsReleased,
             result.ItemsRemoved,
             result.LeftoversRemoved,
-            result.EpisodesRefiled);
+            result.EpisodesRefiled,
+            result.YearsCorrected);
     }
 }

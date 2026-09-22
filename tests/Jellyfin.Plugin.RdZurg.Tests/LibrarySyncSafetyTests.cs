@@ -74,6 +74,7 @@ public class LibrarySyncSafetyTests
             known.Add(item);
         }
         manager.Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(known);
+        manager.Setup(m => m.ParseName(It.IsAny<string>())).Returns((string name) => LibraryReplay.JellyfinParseName(name));
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(() => new HttpClient(new SyncHandler(refuse)));
         return (new LibrarySync(manager.Object, Mock.Of<IProviderManager>(), Mock.Of<IFileSystem>(), factory.Object, NullLogger.Instance), manager, config);
