@@ -6,9 +6,8 @@ release with a ZIP and SHA-256 checksum. A mismatched tag fails. Publishing a dr
 
 ## Distribution
 
-This repository is private. Authorized users can download ZIPs from its Actions artifacts or
-releases and install them manually. Jellyfin's catalog downloader cannot authenticate to private
-GitHub release assets. A manually installed plugin without a registered catalog can show
+Each published release carries the ZIP and its SHA-256 checksum for the manual install described
+in the README. A draft release is invisible to everyone else until it is published. A manually installed plugin without a registered catalog can show
 “repository unknown” or a repository-details error in Jellyfin 12; its Settings link remains usable.
 
 For catalog distribution, first choose an HTTPS host that Jellyfin can access without interactive

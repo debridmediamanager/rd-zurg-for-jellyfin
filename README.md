@@ -6,15 +6,32 @@ other Jellyfin major versions is not implied.
 
 ## Install
 
-1. Stop Jellyfin and back up its data directory.
-2. Extract `rd-zurg_1.0.1.0.zip` into `<Jellyfin data>/plugins/rd-zurg_1.0.1.0/`.
-   The DLL and `meta.json` must be directly inside that directory. Verify the adjacent SHA-256 file.
-3. Start Jellyfin. Open **Dashboard → Plugins → RD zurg → Settings**.
-4. Enter the private token from [Real-Debrid](https://real-debrid.com/apitoken) and your server URL.
-5. Run **Dashboard → Scheduled Tasks → Sync Real-Debrid library**. The default schedule is every six hours.
+This is a standalone plugin. It needs no plugin repository, no zurg service and none of the other
+zurg plugins, so it can be installed on its own.
+
+1. Download `rd-zurg_<version>.zip` and `rd-zurg_<version>.zip.sha256` from the
+   [latest release](https://github.com/debridmediamanager/rd-zurg-for-jellyfin/releases/latest),
+   then check the download with `sha256sum -c rd-zurg_<version>.zip.sha256`
+   (`shasum -a 256 -c` on macOS).
+2. Stop Jellyfin and back up its data directory.
+3. Extract the ZIP into `<Jellyfin data>/plugins/rd-zurg_<version>/`. `Jellyfin.Plugin.RdZurg.dll`,
+   `meta.json` and `thumb.png` must sit directly inside that directory, not in a subdirectory.
+4. Start Jellyfin. Open **Dashboard → Plugins → RD zurg → Settings**.
+5. Enter the private token from [Real-Debrid](https://real-debrid.com/apitoken) and your server URL.
+6. Run **Dashboard → Scheduled Tasks → Sync Real-Debrid library**. The default schedule is every six hours.
 
 For the official Docker image, the data directory is `/config`; native packages commonly use
 `/var/lib/jellyfin`. Use the actual data path shown in your Jellyfin dashboard.
+
+A plugin installed this way shows "Unknown" for Developer and Repository and a notice that its
+details could not be read from a repository. Jellyfin only fills those fields from a plugin
+catalog, so the notice is cosmetic and the Settings page works.
+
+To upgrade, stop Jellyfin, delete the old `plugins/rd-zurg_<old version>/` directory, extract the
+new release in its place and start Jellyfin again. Settings live outside that directory and are kept.
+
+To build and install from source instead, see [Build and verification](#build-and-verification);
+`./build.sh <Jellyfin data>` installs the plugin it builds.
 
 Upgrading from 1.0.0.0 requires a sync before playback: old unsigned URLs are deliberately rejected.
 The sync updates existing items in place, retaining their IDs and associated watch history.
