@@ -106,3 +106,8 @@ python3 scripts/verify-package.py
 `VERSION=1.0.2.0 ./build.sh` overrides both the assembly and package versions together. The project
 file is the default version source. CI builds, runs tests, packages and verifies every main push.
 See [release operations](docs/RELEASING.md) for distribution and the required live release checks.
+
+## License
+
+[GPL-3.0](LICENSE). The plugin builds against Jellyfin's own GPL-3.0 packages, so it carries the same
+license.
